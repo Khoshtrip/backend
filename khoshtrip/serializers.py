@@ -5,8 +5,7 @@ from .models import CustomerUser, ProviderUser
 class CustomerUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerUser
-        fields = ['username', 'password', 'first_name', 'last_name', 'birth_date', 'mobile_number', 'id_number',
-                  'email_address']
+        fields = ['username', 'password', 'email', 'first_name', 'last_name', 'birth_date', 'mobile_number', 'id_number']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -17,8 +16,8 @@ class CustomerUserSerializer(serializers.ModelSerializer):
 class ProviderUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProviderUser
-        fields = ['username', 'password', 'first_name', 'last_name', 'birth_date', 'mobile_number', 'id_number',
-                  'email_address', 'business_name', 'business_address', 'business_contact', 'website_url']
+        fields = ['username', 'password', 'email', 'first_name', 'last_name', 'birth_date', 'mobile_number', 'id_number',
+                  'business_name', 'business_address', 'website_url']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
