@@ -12,10 +12,17 @@ class RegisterCustomerUserView(views.APIView):
             user = serializer.save()
             refresh = RefreshToken.for_user(user)
             return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token)
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                "status": "success",
+                "message": "Buyer registered successfully.",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "status": "error",
+            "message": "Invalid or missing input fields.",
+            "code": "VALIDATION_ERROR",
+            "errors": serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RegisterProviderUserView(views.APIView):
@@ -25,7 +32,14 @@ class RegisterProviderUserView(views.APIView):
             user = serializer.save()
             refresh = RefreshToken.for_user(user)
             return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token)
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                "status": "success",
+                "message": "Provider registered successfully.",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "status": "error",
+            "message": "Invalid or missing input fields.",
+            "code": "VALIDATION_ERROR",
+            "errors": serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
