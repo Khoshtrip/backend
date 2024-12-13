@@ -1,32 +1,27 @@
-from django.core.validators import RegexValidator
+from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.core.validators import RegexValidator, URLValidator
 
 
-class User(models.Model):
-    username = models.CharField(max_length=150, unique=True)
-    password = models.CharField(max_length=128)  # Using Django auth system is recommended for hashed password
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
-    birth_date = models.DateField()
-    mobile_number = models.CharField(
-        max_length=15,
-        validators=[
-            RegexValidator(
-                regex=r'^\+?\d{9,15}$',
-                message="Mobile number is not in the correct format"
-            )
-        ]
-    )
+class CustomerUser(AbstractUser):
+    birth_date = models.DateField(null=True, blank=True)
+    mobile_number = models.CharField(max_length=15, blank=True)
     id_number = models.CharField(
         max_length=10,
-        validators=[
-            RegexValidator(
-                regex=r'^\d{10}$',
-                message="ID number must be exactly 10 digits."
-            )
-        ]
+        validators=[RegexValidator(r'^\d{10}$', 'ID number must be exactly 10 digits.')],
+        unique=True
     )
     email_address = models.EmailField(unique=True)
 
     def __str__(self):
-        return self.username
+        return f"{self.username} ({self.email_address})"
+
+
+class ProviderUser(CustomerUser):
+    business_name = models.CharField(max_length=255)
+    business_address = models.TextField()
+    business_contact = models.CharField(max_length=15)
+    website_url = models.URLField(validators=[URLValidator()], blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.business_name} ({self.username})"
