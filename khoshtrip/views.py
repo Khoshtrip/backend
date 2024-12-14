@@ -9,13 +9,10 @@ class RegisterCustomerUserView(views.APIView):
     def post(self, request):
         serializer = CustomerUserSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
-            refresh = RefreshToken.for_user(user)
+            serializer.save()
             return Response({
                 "status": "success",
                 "message": "Buyer registered successfully.",
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
             }, status=status.HTTP_200_OK)
         return Response({
             "status": "error",
@@ -29,13 +26,10 @@ class RegisterProviderUserView(views.APIView):
     def post(self, request):
         serializer = ProviderUserSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
-            refresh = RefreshToken.for_user(user)
+            serializer.save()
             return Response({
                 "status": "success",
                 "message": "Provider registered successfully.",
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
             }, status=status.HTTP_200_OK)
         return Response({
             "status": "error",
