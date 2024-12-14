@@ -29,7 +29,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
-AUTH_USER_MODEL = 'khoshtrip.CustomerUser'
+AUTH_USER_MODEL = 'khoshtrip.BaseUser'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
