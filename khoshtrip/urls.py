@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from khoshtrip.views import RegisterCustomerUserView, RegisterProviderUserView
+from khoshtrip.views import RegisterCustomerUserView, RegisterProviderUserView, SendVerificationCodeView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,4 +25,5 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/customer/', RegisterCustomerUserView.as_view(), name='register_customer'),
     path('api/auth/register/provider/', RegisterProviderUserView.as_view(), name='register_provider'),
+    path('api/auth/send-verification-code/', SendVerificationCodeView.as_view(), name='send-verification-code'),
 ]

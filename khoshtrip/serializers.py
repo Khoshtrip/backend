@@ -23,3 +23,12 @@ class ProviderUserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = ProviderUser.objects.create_user(**validated_data)
         return user
+
+class SendVerificationCodeSerializer(serializers.Serializer):
+    phone_number = serializers.CharField(max_length=15)
+
+    def validate_phone_number(self, value):
+        # TODO: Add custom validation for phone number format if needed
+        if not value.isdigit() or len(value) < 10:
+            raise serializers.ValidationError("Invalid phone number.")
+        return value
