@@ -147,3 +147,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# TODO: Move these to environment variables.
+VERIFICATION_CODE_EXPIRATION_MINUTES = 5  # Default: 5 minutes

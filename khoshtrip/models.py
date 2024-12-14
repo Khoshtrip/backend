@@ -1,6 +1,9 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.validators import RegexValidator, URLValidator
+from django.utils.timezone import now
+from datetime import timedelta
 
 
 class BaseUser(AbstractUser):
@@ -25,3 +28,24 @@ class ProviderUser(BaseUser):
 
     def __str__(self):
         return f"{self.username} ({self.business_name})"
+
+
+
+class VerificationCode(models.Model):
+    mobile_number = models.CharField(max_length=15, unique=True)  # Mobile number (unique)
+    code = models.CharField(max_length=6)  # 6-digit code stored as a string
+    expiration = models.DateTimeField()  # Expiration timestamp
+    # TODO: Maybe it is the best practice to periodically delete expired codes.
+
+    def save(self, *args, **kwargs):
+        # Automatically set expiration to 5 minutes from now if not provided
+        if not self.expiration:
+            expiration_minutes = getattr(settings, "VERIFICATION_CODE_EXPIRATION_MINUTES", 5)
+            self.expiration = now() + timedelta(minutes=expiration_minutes)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return now() > self.expiration
+
+    def __str__(self):
+        return f"{self.mobile_number} - {self.code} (Expires: {self.expiration})"
