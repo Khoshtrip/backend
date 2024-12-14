@@ -148,5 +148,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# TODO: Logging
+
 # TODO: Move these to environment variables.
 VERIFICATION_CODE_EXPIRATION_MINUTES = 5  # Default: 5 minutes
