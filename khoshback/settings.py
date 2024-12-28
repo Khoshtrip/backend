@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # Local
     'authorization',
     'product',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -144,6 +145,8 @@ REST_FRAMEWORK = {
     ],
     'EXCEPTION_HANDLER': 'utils.exceptions.custom_exception_handler',
     'NON_FIELD_ERRORS_KEY': 'error',
+    'DEFAULT_PAGINATION_CLASS': 'product.pagination.CustomPagination',
+    'PAGE_SIZE': 10,
 }
 
 SIMPLE_JWT = {

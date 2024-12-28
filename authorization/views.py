@@ -16,7 +16,7 @@ from .serializers import (
     UserDetailSerializer,
 )
 import random
-from utils.exceptions import ValidationError, ResourceNotFoundError
+from utils.exceptions import ValidationError, ResourceNotFoundError, AuthenticationError
 from utils.error_codes import ErrorCodes
 
 class SendVerificationCodeView(APIView):
