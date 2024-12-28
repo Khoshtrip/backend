@@ -16,46 +16,83 @@ from .serializers import (
     UserDetailSerializer,
 )
 import random
+from utils.exceptions import ValidationError, ResourceNotFoundError
+from utils.error_codes import ErrorCodes
 
 class SendVerificationCodeView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = SendVerificationCodeSerializer(data=request.data)
-        if serializer.is_valid():
+        try:
+            serializer = SendVerificationCodeSerializer(data=request.data)
+            if not serializer.is_valid():
+                raise ValidationError({
+                    'message': 'Invalid input data',
+                    'code': ErrorCodes.INVALID_PHONE,
+                    'errors': serializer.errors
+                })
+
             phone_number = serializer.validated_data['phone_number']
             if BaseUser.objects.filter(phone_number=phone_number).exists():
-                return Response(
-                    {'status': 'error', 'message': 'User with this phone number already exists.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                raise ValidationError({
+                    'message': 'User with this phone number already exists',
+                    'code': ErrorCodes.USER_EXISTS
+                })
 
             code = str(random.randint(100000, 999999))
-            print(f"Sending code {code}")
+            print(f"Sending code {code}")  # For development
             VerificationCode.objects.create(phone_number=phone_number, code=code)
-            # In production, send the code via SMS
-            return Response({'status': 'success', 'message': 'Verification code sent successfully.'})
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({
+                'status': 'success',
+                'message': 'Verification code sent successfully.'
+            })
+
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise e
+            raise ValidationError(str(e))
 
 
 class VerifyCodeView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = VerifyCodeSerializer(data=request.data)
-        if serializer.is_valid():
+        try:
+            serializer = VerifyCodeSerializer(data=request.data)
+            if not serializer.is_valid():
+                raise ValidationError({
+                    'message': 'Invalid input data',
+                    'code': ErrorCodes.INVALID_INPUT,
+                    'errors': serializer.errors
+                })
+
             phone_number = serializer.validated_data['phone_number']
             code = serializer.validated_data['code']
+
             try:
                 verification_code = VerificationCode.objects.get(
                     phone_number=phone_number, code=code, is_used=False
                 )
                 verification_code.is_used = True
                 verification_code.save()
-                return Response({'status': 'success', 'message': 'Verification successful.', 'phone_number': phone_number})
+
+                return Response({
+                    'status': 'success',
+                    'message': 'Verification successful.',
+                    'data': {'phone_number': phone_number}
+                })
+
             except VerificationCode.DoesNotExist:
-                return Response({'status': 'error', 'message': 'Invalid or expired verification code.'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                raise ValidationError({
+                    'message': 'Invalid or expired verification code',
+                    'code': ErrorCodes.INVALID_CODE
+                })
+
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise e
+            raise ValidationError(str(e))
 
 
 class RegisterBuyerView(APIView):
@@ -85,24 +122,45 @@ class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
+        try:
+            serializer = LoginSerializer(data=request.data)
+            if not serializer.is_valid():
+                raise AuthenticationError({
+                    'message': 'Invalid credentials',
+                    'code': ErrorCodes.INVALID_CREDENTIALS,
+                    'errors': serializer.errors
+                })
+
             phone_number = serializer.validated_data['phone_number']
             password = serializer.validated_data['password']
+
             try:
                 user = BaseUser.objects.get(phone_number=phone_number)
-                if user.check_password(password):
-                    tokens = RefreshToken.for_user(user)
-                    return Response({
-                        'status': 'success',
-                        'access': str(tokens.access_token),
-                        'refresh': str(tokens),
+                if not user.check_password(password):
+                    raise AuthenticationError({
+                        'message': 'Invalid credentials',
+                        'code': ErrorCodes.INVALID_CREDENTIALS
                     })
-                else:
-                    return Response({'status': 'error', 'message': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+                tokens = RefreshToken.for_user(user)
+                return Response({
+                    'status': 'success',
+                    'data': {
+                        'access': str(tokens.access_token),
+                        'refresh': str(tokens)
+                    }
+                })
+
             except BaseUser.DoesNotExist:
-                return Response({'status': 'error', 'message': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                raise AuthenticationError({
+                    'message': 'Invalid credentials',
+                    'code': ErrorCodes.INVALID_CREDENTIALS
+                })
+
+        except Exception as e:
+            if isinstance(e, AuthenticationError):
+                raise e
+            raise AuthenticationError(str(e))
 
 
 class LogoutView(APIView):
@@ -129,31 +187,39 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user 
+        try:
+            user = request.user
+            base_data = {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "phone_number": user.phone_number,
+                "email": user.email,
+                "role": user.role,
+                "national_id": user.national_id,
+                "date_joined": user.date_joined,
+            }
 
-        base_data = {
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "phone_number": user.phone_number,
-            "email": user.email,
-            "role": user.role,
-            "national_id": user.national_id,
-            "date_joined": user.date_joined,
-        }
+            if user.role == 'provider':
+                try:
+                    provider_profile = user.provider_profile
+                    base_data.update({
+                        "business_name": provider_profile.business_name,
+                        "business_address": provider_profile.business_address,
+                        "business_contact": provider_profile.business_contact,
+                        "website_url": provider_profile.website_url,
+                    })
+                except ProviderProfile.DoesNotExist:
+                    raise ResourceNotFoundError({
+                        'message': 'Provider profile not found',
+                        'code': ErrorCodes.NOT_FOUND
+                    })
 
-        if user.role == 'provider':
-            try:
-                provider_profile = user.provider_profile
-                base_data.update({
-                    "business_name": provider_profile.business_name,
-                    "business_address": provider_profile.business_address,
-                    "business_contact": provider_profile.business_contact,
-                    "website_url": provider_profile.website_url,
-                })
-            except ProviderProfile.DoesNotExist:
-                return Response(
-                    {"status": "error", "message": "Provider profile not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+            return Response({
+                'status': 'success',
+                'data': base_data
+            })
 
-        return Response(base_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            if isinstance(e, (ResourceNotFoundError, ValidationError)):
+                raise e
+            raise ValidationError(str(e))
