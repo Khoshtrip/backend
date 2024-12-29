@@ -3,10 +3,12 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
+from utils.error_codes import ErrorCodes
 from .serializers import ProductSerializer
 from rest_framework.permissions import IsAuthenticated
 from authorization.permissions import IsProvider
-from utils.exceptions import ValidationError, PermissionError
+from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
 from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
@@ -26,7 +28,7 @@ class ProductCreateView(APIView):
                 return Response({
                     'status': 'error',
                     'message': 'Invalid product data',
-                    'code': 'VAL_003',
+                    'code': ErrorCodes.INVALID_INPUT,
                     'errors': serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -63,7 +65,7 @@ class ProductDetailsView(APIView):
                 return Response({
                     'status': 'error',
                     'message': 'You do not have permission to access this product',
-                    'code': 'PERM_001',
+                    'code': ErrorCodes.PERMISSION_DENIED,
                     'errors': None
                 }, status=status.HTTP_403_FORBIDDEN)
 
@@ -77,7 +79,7 @@ class ProductDetailsView(APIView):
             return Response({
                 'status': 'error',
                 'message': 'Product not found',
-                'code': 'RES_001',
+                'code': ErrorCodes.NOT_FOUND,
                 'errors': None
             }, status=status.HTTP_404_NOT_FOUND)
 
@@ -105,7 +107,7 @@ class ProductDetailsView(APIView):
                     {
                         "status": "error",
                         "message": "Product not found.",
-                        "code": "NOT_FOUND",
+                        "code": ErrorCodes.NOT_FOUND,
                     },
                     status=status.HTTP_404_NOT_FOUND,
                 )
@@ -115,7 +117,7 @@ class ProductDetailsView(APIView):
                 return Response(
                     {
                         "status": "error",
-                        "message": "Permission denied.",
+                        "message": "Permission denied",
                         "code": ErrorCodes.PERMISSION_DENIED,
                     },
                     status=status.HTTP_403_FORBIDDEN,
@@ -126,7 +128,7 @@ class ProductDetailsView(APIView):
             return Response(
                 {
                     "status": "success",
-                    "message": "Product deleted successfully."
+                    "message": "Product deleted successfully"
                 },
                 status=status.HTTP_200_OK,
             )
