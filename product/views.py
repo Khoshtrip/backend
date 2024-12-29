@@ -59,11 +59,25 @@ class ProductListView(ListAPIView):
         return Product.objects.filter(provider=user.provider_profile)
 
 class ProductGetView(APIView):
-    def get(self, productId):
-        pass
+    def get(self, request, product_id):
+        product = get_object_or_404(Product, id=product_id)
+        if request.user != product.provider.user:
+            raise PermissionDenied("You do not have permission to access this product.")
+        serializer = ProductSerializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def put(self, request, productId):
-        pass
+    def put(self, request, product_id):
+        product = get_object_or_404(Product, id=product_id)
+        if request.user != product.provider.user:
+            raise PermissionDenied("You do not have permission to access this product.")
+        serializer = ProductSerializer(product, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "status": "success",
+                "message": "Product updated successfully."
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, productId):
         try:
@@ -106,29 +120,3 @@ class ProductGetView(APIView):
             if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
                 raise e
             raise ValidationError(str(e))
-
-
-class ProductGetView(APIView):
-    def get(self, request, product_id):
-        product = get_object_or_404(Product, id=product_id)
-        if request.user != product.provider.user:
-            raise PermissionDenied("You do not have permission to access this product.")
-        serializer = ProductSerializer(product)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def put(self, request, product_id):
-        product = get_object_or_404(Product, id=product_id)
-        if request.user != product.provider.user:
-            raise PermissionDenied("You do not have permission to access this product.")
-        serializer = ProductSerializer(product, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({
-                "status": "success",
-                "message": "Product updated successfully."
-            }, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, productId):
-        # TODO
-        pass
