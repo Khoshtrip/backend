@@ -7,23 +7,19 @@ from .error_codes import ErrorCodes
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
     
+    error_response = {
+        'status': 'error',
+        'message': str(exc.detail) if hasattr(exc, 'detail') else str(exc),
+        'code': getattr(exc, 'code', 'INTERNAL_ERROR'),
+        'errors': None
+    }
+    
     if response is not None:
-        response.data = {
-            'status': 'error',
-            'message': str(exc.detail) if hasattr(exc, 'detail') else str(exc),
-            'code': getattr(exc, 'code', None),
-            'errors': response.data if isinstance(response.data, dict) else None
-        }
+        if isinstance(response.data, dict):
+            error_response['errors'] = response.data
+        response.data = error_response
     else:
-        response = Response(
-            {
-                'status': 'error',
-                'message': str(exc),
-                'code': 'INTERNAL_ERROR',
-                'errors': None
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        response = Response(error_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     return response
 

@@ -6,8 +6,7 @@ from rest_framework import status
 from .serializers import ProductSerializer
 from rest_framework.permissions import IsAuthenticated
 from authorization.permissions import IsProvider
-from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
-from utils.error_codes import ErrorCodes
+from utils.exceptions import ValidationError, PermissionError
 from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
@@ -24,20 +23,17 @@ class ProductCreateView(APIView):
         try:
             serializer = ProductSerializer(data=request.data)
             if not serializer.is_valid():
-                return Response(
-                {
-                    "status": "error",
-                    "message": "Invalid product data",
-                    "code": "INVALID_INPUT",
-                    "errors": serializer.errors,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid product data',
+                    'code': 'VAL_003',
+                    'errors': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             product = serializer.save(provider=request.user.provider_profile)
             return Response({
                 'status': 'success',
-                'message': 'Product created successfully.',
+                'message': 'Product created successfully',
                 'data': serializer.data
             }, status=status.HTTP_201_CREATED)
 
@@ -58,13 +54,32 @@ class ProductListView(ListAPIView):
         user = self.request.user
         return Product.objects.filter(provider=user.provider_profile)
 
-class ProductGetView(APIView):
+
+class ProductDetailsView(APIView):
     def get(self, request, product_id):
-        product = get_object_or_404(Product, id=product_id)
-        if request.user != product.provider.user:
-            raise PermissionDenied("You do not have permission to access this product.")
-        serializer = ProductSerializer(product)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            product = get_object_or_404(Product, id=product_id)
+            if request.user != product.provider.user:
+                return Response({
+                    'status': 'error',
+                    'message': 'You do not have permission to access this product',
+                    'code': 'PERM_001',
+                    'errors': None
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            serializer = ProductSerializer(product)
+            return Response({
+                'status': 'success',
+                'message': 'Product retrieved successfully',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+        except Product.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Product not found',
+                'code': 'RES_001',
+                'errors': None
+            }, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, product_id):
         product = get_object_or_404(Product, id=product_id)
