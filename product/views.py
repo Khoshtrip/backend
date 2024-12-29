@@ -13,6 +13,59 @@ from rest_framework.filters import SearchFilter
 from .models import Product
 from .pagination import CustomPagination
 from .filters import ProductFilter
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser
+from rest_framework import status
+from django.http import FileResponse, Http404
+from .models import Image
+
+class ImageUploadView(APIView):
+    parser_classes = [MultiPartParser]
+
+    def post(self, request, *args, **kwargs):
+        file = request.data.get('file')
+        if not file:
+            return Response(
+                {"status": "error", "message": "No file provided."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # image = Image.objects.create(file=file, uploader=request.user)
+        image = Image.objects.create(file=file)
+
+        return Response(
+            {"status": "success", "imageId": image.id},
+            status=status.HTTP_200_OK
+        )
+
+class ImageDeleteView(APIView):
+    def delete(self, request, imageId, *args, **kwargs):
+        try:
+            # image = Image.objects.get(id=imageId, uploader=request.user)
+            image = Image.objects.get(id=imageId)
+
+        except Image.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Image not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        image.file.delete()
+        image.delete()
+        return Response(
+            {"status": "success", "message": "Image deleted successfully."},
+            status=status.HTTP_200_OK
+        )
+
+class ImageDownloadView(APIView):
+    def get(self, request, imageId, *args, **kwargs):
+        try:
+            image = Image.objects.get(id=imageId)
+        except Image.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Image not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return FileResponse(image.file.open(), as_attachment=True)
 
 # Create your views here.
 
