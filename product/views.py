@@ -1,11 +1,10 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import ProductSerializer
 from rest_framework.permissions import IsAuthenticated
 from authorization.permissions import IsProvider
-from utils.exceptions import ValidationError, PermissionError
+from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
 from utils.error_codes import ErrorCodes
 from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
@@ -56,3 +55,52 @@ class ProductListView(ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Product.objects.filter(provider=user.provider_profile)
+
+class ProductGetView(APIView):
+    def get(self, productId):
+        pass
+
+    def put(self, request, productId):
+        pass
+
+    def delete(self, request, productId):
+        try:
+            # Fetch the product by ID and ensure it belongs to the authenticated provider
+            user = request.user
+            product = Product.objects.filter(id=productId).first()
+
+            if not product:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Product not found.",
+                        "code": "NOT_FOUND",
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # check if permitted
+            if product.provider != user.provider_profile:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Permission denied.",
+                        "code": ErrorCodes.PERMISSION_DENIED,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Delete the product
+            product.delete()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Product deleted successfully."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
+                raise e
+            raise ValidationError(str(e))
