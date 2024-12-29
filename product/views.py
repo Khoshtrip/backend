@@ -96,11 +96,11 @@ class ProductDetailsView(APIView):
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, productId):
+    def delete(self, request, product_id):
         try:
             # Fetch the product by ID and ensure it belongs to the authenticated provider
             user = request.user
-            product = Product.objects.filter(id=productId).first()
+            product = Product.objects.filter(id=product_id).first()
 
             if not product:
                 return Response(
@@ -117,7 +117,7 @@ class ProductDetailsView(APIView):
                 return Response(
                     {
                         "status": "error",
-                        "message": "Permission denied",
+                        "message": "You do not have permission to access this product",
                         "code": ErrorCodes.PERMISSION_DENIED,
                     },
                     status=status.HTTP_403_FORBIDDEN,
@@ -137,3 +137,57 @@ class ProductDetailsView(APIView):
             if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
                 raise e
             raise ValidationError(str(e))
+
+class ProductActivateView(APIView):
+    permission_classes = [IsAuthenticated, IsProvider]
+
+    def post(self, request, product_id):
+        try:
+            product = get_object_or_404(Product, id=product_id, provider=request.user.provider_profile)
+            if request.user != product.provider.user:
+                return Response({
+                    'status': 'error',
+                    'message': 'You do not have permission to access this product',
+                    'code': ErrorCodes.PERMISSION_DENIED,
+                    'errors': None
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            product.is_active = True
+            product.save()
+            return Response({
+                "status": "success",
+                "message": "Product activated successfully"
+            }, status=status.HTTP_200_OK)
+        except Product.DoesNotExist:
+            return Response({
+                "status": "error",
+                "message": "Product not found",
+                "code": ErrorCodes.NOT_FOUND
+            }, status=status.HTTP_404_NOT_FOUND)
+
+class ProductDeactivateView(APIView):
+    permission_classes = [IsAuthenticated, IsProvider]
+
+    def post(self, request, product_id):
+        try:
+            product = get_object_or_404(Product, id=product_id, provider=request.user.provider_profile)
+            if request.user != product.provider.user:
+                return Response({
+                    'status': 'error',
+                    'message': 'You do not have permission to access this product',
+                    'code': ErrorCodes.PERMISSION_DENIED,
+                    'errors': None
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            product.is_active = False
+            product.save()
+            return Response({
+                "status": "success",
+                "message": "Product deactivated successfully"
+            }, status=status.HTTP_200_OK)
+        except Product.DoesNotExist:
+            return Response({
+                "status": "error",
+                "message": "Product not found",
+                "code": ErrorCodes.NOT_FOUND
+            }, status=status.HTTP_404_NOT_FOUND)
