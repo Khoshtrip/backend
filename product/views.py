@@ -143,7 +143,17 @@ class ProductActivateView(APIView):
 
     def post(self, request, product_id):
         try:
-            product = get_object_or_404(Product, id=product_id, provider=request.user.provider_profile)
+            product = Product.objects.filter(id=product_id).first()
+            if not product:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Product not found.",
+                        "code": ErrorCodes.NOT_FOUND,
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
             if request.user != product.provider.user:
                 return Response({
                     'status': 'error',
@@ -152,25 +162,35 @@ class ProductActivateView(APIView):
                     'errors': None
                 }, status=status.HTTP_403_FORBIDDEN)
 
-            product.is_active = True
+            product.isActive = True
             product.save()
             return Response({
                 "status": "success",
                 "message": "Product activated successfully"
             }, status=status.HTTP_200_OK)
-        except Product.DoesNotExist:
-            return Response({
-                "status": "error",
-                "message": "Product not found",
-                "code": ErrorCodes.NOT_FOUND
-            }, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
+                raise e
+            raise ValidationError(str(e))
 
 class ProductDeactivateView(APIView):
     permission_classes = [IsAuthenticated, IsProvider]
 
     def post(self, request, product_id):
         try:
-            product = get_object_or_404(Product, id=product_id, provider=request.user.provider_profile)
+            product = Product.objects.filter(id=product_id).first()
+            if not product:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Product not found.",
+                        "code": ErrorCodes.NOT_FOUND,
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+
             if request.user != product.provider.user:
                 return Response({
                     'status': 'error',
@@ -179,15 +199,14 @@ class ProductDeactivateView(APIView):
                     'errors': None
                 }, status=status.HTTP_403_FORBIDDEN)
 
-            product.is_active = False
+            product.isActive = False
             product.save()
             return Response({
                 "status": "success",
                 "message": "Product deactivated successfully"
             }, status=status.HTTP_200_OK)
-        except Product.DoesNotExist:
-            return Response({
-                "status": "error",
-                "message": "Product not found",
-                "code": ErrorCodes.NOT_FOUND
-            }, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
+                raise e
+            raise ValidationError(str(e))
