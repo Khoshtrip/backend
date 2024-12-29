@@ -1,4 +1,5 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -6,7 +7,6 @@ from .serializers import ProductSerializer
 from rest_framework.permissions import IsAuthenticated
 from authorization.permissions import IsProvider
 from utils.exceptions import ValidationError, PermissionError
-from utils.error_codes import ErrorCodes
 from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
@@ -56,3 +56,29 @@ class ProductListView(ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Product.objects.filter(provider=user.provider_profile)
+
+
+class ProductGetView(APIView):
+    def get(self, request, product_id):
+        product = get_object_or_404(Product, id=product_id)
+        if request.user != product.provider.user:
+            raise PermissionDenied("You do not have permission to access this product.")
+        serializer = ProductSerializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, product_id):
+        product = get_object_or_404(Product, id=product_id)
+        if request.user != product.provider.user:
+            raise PermissionDenied("You do not have permission to access this product.")
+        serializer = ProductSerializer(product, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "status": "success",
+                "message": "Product updated successfully."
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, productId):
+        # TODO
+        pass
