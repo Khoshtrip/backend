@@ -23,11 +23,15 @@ class ProductCreateView(APIView):
         try:
             serializer = ProductSerializer(data=request.data)
             if not serializer.is_valid():
-                raise ValidationError({
-                    'message': 'Invalid product data',
-                    'code': ErrorCodes.INVALID_INPUT,
-                    'errors': serializer.errors
-                })
+                return Response(
+                {
+                    "status": "error",
+                    "message": "Invalid product data",
+                    "code": "INVALID_INPUT",
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
             product = serializer.save(provider=request.user.provider_profile)
             return Response({
