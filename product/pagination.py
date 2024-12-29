@@ -7,8 +7,12 @@ class CustomPagination(LimitOffsetPagination):
 
     def get_paginated_response(self, data):
         return Response({
-            'total': self.count,
-            'offset': self.offset,
-            'limit': self.limit,
-            'products': data
+            'status': 'success',
+            'message': 'Products retrieved successfully',
+            'data': {
+                'total': self.count,
+                'offset': self.offset,
+                'limit': self.limit,
+                'products': data
+            }
         }) 
