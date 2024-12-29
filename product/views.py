@@ -55,7 +55,7 @@ class ProductListView(ListAPIView):
         return Product.objects.filter(provider=user.provider_profile)
 
 
-class ProductGetView(APIView):
+class ProductDetailsView(APIView):
     def get(self, request, product_id):
         try:
             product = get_object_or_404(Product, id=product_id)
