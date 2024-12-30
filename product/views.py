@@ -24,8 +24,6 @@ from rest_framework.permissions import AllowAny
 
 class ImageUploadView(APIView):
     parser_classes = [MultiPartParser]
-    permission_classes = [AllowAny]
-
 
     def post(self, request, *args, **kwargs):
         file = request.data.get('file')
@@ -38,12 +36,13 @@ class ImageUploadView(APIView):
         image = Image.objects.create(file=file)
 
         return Response(
-            {"status": "success", "imageId": image.id},
+            {"status": "success",
+                "message": "Here is your image :)",
+             "imageId": image.id},
             status=status.HTTP_200_OK
         )
 
 class ImageDeleteView(APIView):
-    permission_classes = [AllowAny]
 
     def delete(self, request, imageId, *args, **kwargs):
         try:
@@ -52,7 +51,7 @@ class ImageDeleteView(APIView):
 
         except Image.DoesNotExist:
             return Response(
-                {"status": "error", "message": "Image not found."},
+                {"status": "error", "message": "Image not found.","code": "RES_001",},
                 status=status.HTTP_404_NOT_FOUND
             )
         image.file.delete()
@@ -69,7 +68,10 @@ class ImageDownloadView(APIView):
             image = Image.objects.get(id=imageId)
         except Image.DoesNotExist:
             return Response(
-                {"status": "error", "message": "Image not found."},
+                {"status": "error",
+                 "message": "Image not found.",
+                 "code": "RES_001",
+                 },
                 status=status.HTTP_404_NOT_FOUND
             )
         
