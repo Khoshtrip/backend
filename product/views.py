@@ -19,9 +19,13 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework import status
 from django.http import FileResponse, Http404
 from .models import Image
+from rest_framework.permissions import AllowAny
+
 
 class ImageUploadView(APIView):
     parser_classes = [MultiPartParser]
+    permission_classes = [AllowAny]
+
 
     def post(self, request, *args, **kwargs):
         file = request.data.get('file')
@@ -39,6 +43,8 @@ class ImageUploadView(APIView):
         )
 
 class ImageDeleteView(APIView):
+    permission_classes = [AllowAny]
+
     def delete(self, request, imageId, *args, **kwargs):
         try:
             # image = Image.objects.get(id=imageId, uploader=request.user)
@@ -57,6 +63,7 @@ class ImageDeleteView(APIView):
         )
 
 class ImageDownloadView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request, imageId, *args, **kwargs):
         try:
             image = Image.objects.get(id=imageId)
@@ -65,7 +72,11 @@ class ImageDownloadView(APIView):
                 {"status": "error", "message": "Image not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        return FileResponse(image.file.open(), as_attachment=True)
+        
+        # Open the image file
+        file = image.file.open()
+        return FileResponse(file, content_type="image/jpeg")
+
 
 # Create your views here.
 
