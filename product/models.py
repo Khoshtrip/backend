@@ -7,6 +7,7 @@ class Product(models.Model):
     summary = models.CharField(max_length=500)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    discount = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     stock = models.IntegerField()
     category = models.CharField(max_length=100)
     images = models.JSONField(default=list)  # Assuming images are stored as a list of strings
