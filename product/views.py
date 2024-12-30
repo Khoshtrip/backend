@@ -1,3 +1,4 @@
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -59,21 +60,7 @@ class ProductDetailsView(APIView):
     def get(self, request, product_id):
         try:
             product = get_object_or_404(Product, id=product_id)
-            if request.user != product.provider.user:
-                return Response({
-                    'status': 'error',
-                    'message': 'You do not have permission to access this product',
-                    'code': 'PERM_001',
-                    'errors': None
-                }, status=status.HTTP_403_FORBIDDEN)
-            
-            serializer = ProductSerializer(product)
-            return Response({
-                'status': 'success',
-                'message': 'Product retrieved successfully',
-                'data': serializer.data
-            }, status=status.HTTP_200_OK)
-        except Product.DoesNotExist:
+        except Http404:
             return Response({
                 'status': 'error',
                 'message': 'Product not found',
@@ -81,10 +68,39 @@ class ProductDetailsView(APIView):
                 'errors': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-    def put(self, request, product_id):
-        product = get_object_or_404(Product, id=product_id)
         if request.user != product.provider.user:
-            raise PermissionDenied("You do not have permission to access this product.")
+            return Response({
+                'status': 'error',
+                'message': 'You do not have permission to access this product',
+                'code': 'PERM_001',
+                'errors': None
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ProductSerializer(product)
+        return Response({
+            'status': 'success',
+            'message': 'Product retrieved successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    def put(self, request, product_id):
+        try:
+            product = get_object_or_404(Product, id=product_id)
+        except Http404:
+            return Response({
+                'status': 'error',
+                'message': 'Product not found',
+                'code': 'RES_001',
+                'errors': None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user != product.provider.user:
+            return Response({
+                'status': 'error',
+                'message': 'You do not have permission to access this product',
+                'code': 'PERM_001',
+                'errors': None
+            }, status=status.HTTP_403_FORBIDDEN)
         serializer = ProductSerializer(product, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
