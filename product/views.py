@@ -43,7 +43,6 @@ class ImageUploadView(APIView):
         )
 
 class ImageDeleteView(APIView):
-
     def delete(self, request, imageId, *args, **kwargs):
         try:
             # image = Image.objects.get(id=imageId, uploader=request.user)
