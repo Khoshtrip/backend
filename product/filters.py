@@ -4,6 +4,7 @@ from .models import Product
 class ProductFilter(filters.FilterSet):
     minPrice = filters.NumberFilter(field_name='price', lookup_expr='gte')
     maxPrice = filters.NumberFilter(field_name='price', lookup_expr='lte')
+    category = filters.ChoiceFilter(choices=Product.CATEGORY_CHOICES)
     stockAvailable = filters.BooleanFilter(method='filter_stock_available')
     
     class Meta:

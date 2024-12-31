@@ -1,12 +1,15 @@
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
+from utils.error_codes import ErrorCodes
 from .serializers import ProductSerializer
 from rest_framework.permissions import IsAuthenticated
 from authorization.permissions import IsProvider
-from utils.exceptions import ValidationError, PermissionError
+from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
 from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
@@ -91,7 +94,7 @@ class ProductCreateView(APIView):
                 return Response({
                     'status': 'error',
                     'message': 'Invalid product data',
-                    'code': 'VAL_003',
+                    'code': ErrorCodes.INVALID_INPUT,
                     'errors': serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -124,21 +127,33 @@ class ProductDetailsView(APIView):
     def get(self, request, product_id):
         try:
             product = get_object_or_404(Product, id=product_id)
-            if request.user != product.provider.user:
-                return Response({
-                    'status': 'error',
-                    'message': 'You do not have permission to access this product',
-                    'code': 'PERM_001',
-                    'errors': None
-                }, status=status.HTTP_403_FORBIDDEN)
-            
-            serializer = ProductSerializer(product)
+        except Http404:
             return Response({
-                'status': 'success',
-                'message': 'Product retrieved successfully',
-                'data': serializer.data
-            }, status=status.HTTP_200_OK)
-        except Product.DoesNotExist:
+                'status': 'error',
+                'message': 'Product not found',
+                'code': ErrorCodes.NOT_FOUND,
+                'errors': None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user != product.provider.user:
+            return Response({
+                'status': 'error',
+                'message': 'You do not have permission to access this product',
+                'code': 'PERM_001',
+                'errors': None
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ProductSerializer(product)
+        return Response({
+            'status': 'success',
+            'message': 'Product retrieved successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    def put(self, request, product_id):
+        try:
+            product = get_object_or_404(Product, id=product_id)
+        except Http404:
             return Response({
                 'status': 'error',
                 'message': 'Product not found',
@@ -146,10 +161,13 @@ class ProductDetailsView(APIView):
                 'errors': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-    def put(self, request, product_id):
-        product = get_object_or_404(Product, id=product_id)
         if request.user != product.provider.user:
-            raise PermissionDenied("You do not have permission to access this product.")
+            return Response({
+                'status': 'error',
+                'message': 'You do not have permission to access this product',
+                'code': 'PERM_001',
+                'errors': None
+            }, status=status.HTTP_403_FORBIDDEN)
         serializer = ProductSerializer(product, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -159,6 +177,117 @@ class ProductDetailsView(APIView):
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, productId):
-        # TODO
-        pass
+    def delete(self, request, product_id):
+        try:
+            # Fetch the product by ID and ensure it belongs to the authenticated provider
+            user = request.user
+            product = Product.objects.filter(id=product_id).first()
+
+            if not product:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Product not found.",
+                        "code": ErrorCodes.NOT_FOUND,
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # check if permitted
+            if product.provider != user.provider_profile:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "You do not have permission to access this product",
+                        "code": ErrorCodes.PERMISSION_DENIED,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Delete the product
+            product.delete()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Product deleted successfully"
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
+                raise e
+            raise ValidationError(str(e))
+
+class ProductActivateView(APIView):
+    permission_classes = [IsAuthenticated, IsProvider]
+
+    def post(self, request, product_id):
+        try:
+            product = Product.objects.filter(id=product_id).first()
+            if not product:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Product not found.",
+                        "code": ErrorCodes.NOT_FOUND,
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if request.user != product.provider.user:
+                return Response({
+                    'status': 'error',
+                    'message': 'You do not have permission to access this product',
+                    'code': ErrorCodes.PERMISSION_DENIED,
+                    'errors': None
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            product.isActive = True
+            product.save()
+            return Response({
+                "status": "success",
+                "message": "Product activated successfully"
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
+                raise e
+            raise ValidationError(str(e))
+
+class ProductDeactivateView(APIView):
+    permission_classes = [IsAuthenticated, IsProvider]
+
+    def post(self, request, product_id):
+        try:
+            product = Product.objects.filter(id=product_id).first()
+            if not product:
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Product not found.",
+                        "code": ErrorCodes.NOT_FOUND,
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+
+            if request.user != product.provider.user:
+                return Response({
+                    'status': 'error',
+                    'message': 'You do not have permission to access this product',
+                    'code': ErrorCodes.PERMISSION_DENIED,
+                    'errors': None
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            product.isActive = False
+            product.save()
+            return Response({
+                "status": "success",
+                "message": "Product deactivated successfully"
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
+                raise e
+            raise ValidationError(str(e))
