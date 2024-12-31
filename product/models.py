@@ -1,6 +1,16 @@
 from django.db import models
 from django.utils import timezone
 from authorization.models import ProviderProfile
+from django.db import models
+
+
+class Image(models.Model):
+    id = models.AutoField(primary_key=True)
+    file = models.ImageField(upload_to='uploads/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    # uploader = models.ForeignKey(
+    #     'auth.User', on_delete=models.CASCADE, related_name='images'
+    # )
 
 class Product(models.Model):
     CATEGORY_CHOICES = [

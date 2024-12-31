@@ -168,3 +168,6 @@ AUTH_USER_MODEL = 'authorization.BaseUser'
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins (development)
 CORS_ALLOW_CREDENTIALS = True  # Allow sending credentials like cookies or Authorization headers
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
