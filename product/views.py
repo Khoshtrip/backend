@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
@@ -289,5 +290,83 @@ class ProductDeactivateView(APIView):
 
         except Exception as e:
             if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
+                raise e
+            raise ValidationError(str(e))
+
+class ProductChangeStockView(APIView):
+    permission_classes = [IsAuthenticated, IsProvider]
+
+    def patch(self, request):
+        try:
+            data = request.data
+            updates = data.get('updates', [])
+            stock_change = data.get('stockChange', None)
+
+            if not updates or stock_change is None:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid input data. Both updates and stockChange are required.',
+                    'code': ErrorCodes.INVALID_INPUT,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            product_ids = [update.get('productId') for update in updates]
+            products = Product.objects.filter(id__in=product_ids, provider=request.user.provider_profile)
+
+            if products.count() != len(product_ids):
+                return Response({
+                    'status': 'error',
+                    'message': 'One or more products not found or you do not have permission to update them.',
+                    'code': ErrorCodes.NOT_FOUND,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update stock for each product
+            with transaction.atomic():
+                for product in products:
+                    product.stock += stock_change
+                    product.save()
+
+            return Response({
+                'status': 'success',
+                'message': 'Stock quantities updated successfully.',
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError)):
+                raise e
+            raise ValidationError(str(e))
+
+class ProductBulkDeleteView(APIView):
+    permission_classes = [IsAuthenticated, IsProvider]
+
+    def delete(self, request):
+        try:
+            product_ids = request.query_params.get('productIds', '').split(',')
+
+            if not product_ids:
+                return Response({
+                    'status': 'error',
+                    'message': 'Invalid product IDs.',
+                    'code': ErrorCodes.INVALID_INPUT,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            products = Product.objects.filter(id__in=product_ids, provider=request.user.provider_profile)
+
+            if products.count() != len(product_ids):
+                return Response({
+                    'status': 'error',
+                    'message': 'One or more products not found or you do not have permission to delete them.',
+                    'code': ErrorCodes.NOT_FOUND,
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Delete the products
+            products.delete()
+
+            return Response({
+                'status': 'success',
+                'message': 'Products deleted successfully.',
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            if isinstance(e, (ValidationError, PermissionError)):
                 raise e
             raise ValidationError(str(e))
