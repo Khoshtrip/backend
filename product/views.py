@@ -309,7 +309,7 @@ class ProductChangeStockView(APIView):
                     'code': ErrorCodes.INVALID_INPUT,
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            product_ids = [update.get('productId') for update in updates]
+            product_ids = [update for update in updates]
             products = Product.objects.filter(id__in=product_ids, provider=request.user.provider_profile)
 
             if products.count() != len(product_ids):
