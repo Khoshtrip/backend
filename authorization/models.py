@@ -29,6 +29,7 @@ class BaseUser(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('customer', 'Customer'),
         ('provider', 'Provider'),
+        ('package_maker', 'Package Maker'),
     ]
 
     first_name = models.CharField(max_length=50, blank=True)
