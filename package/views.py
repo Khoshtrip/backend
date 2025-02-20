@@ -9,6 +9,7 @@ from .models import TripPackage
 from .serializers import TripPackageSerializer, TripPackageListSerializer
 from authorization.permissions import IsPackageMaker, IsPackageMakerOrCustomer
 from datetime import datetime
+from django.shortcuts import get_object_or_404
 
 class PackagePagination(PageNumberPagination):
     page_size = 10
@@ -164,4 +165,14 @@ class PackageCreateView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+class PackageDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsPackageMaker]
+
+    def delete(self, request, package_id):
+        package = get_object_or_404(TripPackage, id=package_id)
+        
+        package.delete()
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
         
