@@ -168,6 +168,7 @@ class PackageCreateView(APIView):
 
 class PackageDetailView(APIView):
     permission_classes = [IsAuthenticated, IsPackageMakerOrCustomer]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get(self, request, package_id):
         package = get_object_or_404(
@@ -184,6 +185,50 @@ class PackageDetailView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+    def put(self, request, package_id):
+        if not IsPackageMaker().has_permission(request, self):
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Only package makers can edit packages'
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        package = get_object_or_404(TripPackage, id=package_id)
+
+        try:
+            serializer = TripPackageSerializer(package, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            return Response(
+                {
+                    'status': 'success',
+                    'message': 'Trip package updated successfully',
+                    'data': serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
+        except ValidationError as e:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': str(e),
+                    'errors': e.message_dict if hasattr(e, 'message_dict') else {'error': str(e)}
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Failed to update trip package',
+                    'errors': {'error': str(e)}
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def delete(self, request, package_id):
         if not IsPackageMaker().has_permission(request, self):
