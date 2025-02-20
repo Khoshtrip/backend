@@ -167,12 +167,35 @@ class PackageCreateView(APIView):
             )
 
 class PackageDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsPackageMaker]
+    permission_classes = [IsAuthenticated, IsPackageMakerOrCustomer]
+
+    def get(self, request, package_id):
+        package = get_object_or_404(
+            TripPackage.objects.select_related('flight', 'hotel').prefetch_related('activities'),
+            id=package_id
+        )
+        
+        serializer = TripPackageListSerializer(package)
+        
+        return Response(
+            {
+                'status': 'success',
+                'data': serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
 
     def delete(self, request, package_id):
+        if not IsPackageMaker().has_permission(request, self):
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Only package makers can delete packages'
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
         package = get_object_or_404(TripPackage, id=package_id)
-        
         package.delete()
-        
         return Response(status=status.HTTP_204_NO_CONTENT)
         
