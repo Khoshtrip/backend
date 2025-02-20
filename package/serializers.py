@@ -2,6 +2,22 @@ from rest_framework import serializers
 from .models import TripPackage
 from product.models import Product, Image
 
+class TripPackageListSerializer(serializers.ModelSerializer):
+    flight = serializers.IntegerField(source='flight.id')
+    hotel = serializers.IntegerField(source='hotel.id')
+    activities = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TripPackage
+        fields = [
+            'id', 'name', 'photos', 'flight', 'hotel',
+            'activities', 'price', 'start_date', 'end_date', 'published',
+            'available_units'
+        ]
+
+    def get_activities(self, obj):
+        return list(obj.activities.values_list('id', flat=True))
+
 class TripPackageSerializer(serializers.ModelSerializer):
     class Meta:
         model = TripPackage

@@ -1,8 +1,9 @@
 from django.urls import path
 from .views import (
-    PackageCreateView
+    PackageCreateView, PackageListView
 )
 
 urlpatterns = [
-    path('packages/', PackageCreateView.as_view(), name='package-create'),
+    path('package/', PackageCreateView.as_view(), name='package-create'),
+    path('packages/', PackageListView.as_view(), name='package-list'),
 ]
