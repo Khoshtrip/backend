@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # Local
     'authorization',
     'product',
+    'package',
     'django_filters',
 ]
 
