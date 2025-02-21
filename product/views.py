@@ -135,7 +135,7 @@ class ProductDetailsView(APIView):
                 'errors': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-        if request.user != product.provider.user:
+        if (request.user != product.provider.user) and (request.user.role != 'package_maker'):
             return Response({
                 'status': 'error',
                 'message': 'You do not have permission to access this product',
