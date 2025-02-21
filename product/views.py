@@ -23,7 +23,7 @@ from rest_framework import status
 from django.http import FileResponse, Http404
 from .models import Image
 from rest_framework.permissions import AllowAny
-
+from authorization.permissions import IsPackageMaker
 
 class ImageUploadView(APIView):
     parser_classes = [MultiPartParser]
@@ -291,3 +291,38 @@ class ProductDeactivateView(APIView):
             if isinstance(e, (ValidationError, PermissionError, ResourceNotFoundError)):
                 raise e
             raise ValidationError(str(e))
+
+class AllProductsListView(ListAPIView):
+    permission_classes = [IsAuthenticated, IsPackageMaker]
+    serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['name', 'summary', 'description']
+    filterset_class = ProductFilter
+    pagination_class = CustomPagination
+
+    def get_queryset(self):
+        queryset = Product.objects.filter(isActive=True)
+        product_type = self.request.query_params.get('type', None)
+        
+        if product_type:
+            # Split the type parameter in case multiple types are provided
+            product_types = product_type.split(',')
+            # Filter for the specified product types
+            queryset = queryset.filter(category__in=product_types)
+        
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'status': 'success',
+            'message': 'Products retrieved successfully',
+            'data': serializer.data
+        })

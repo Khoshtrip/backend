@@ -243,4 +243,3 @@ class PackageDetailView(APIView):
         package = get_object_or_404(TripPackage, id=package_id)
         package.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-        
