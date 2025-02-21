@@ -253,12 +253,15 @@ class GenerateTransactionView(APIView):
     def post(self, request, package_id):
         package = get_object_or_404(TripPackage, id=package_id)
 
+        # Get the quantity from the request data
+        quantity = request.data.get('quantity', 1)
+
         # Validate available units
-        if package.available_units < 1:
+        if package.available_units < quantity:
             return Response(
                 {
                     'status': 'error',
-                    'message': 'No available units for this package'
+                    'message': f'Not enough available units for this package. Available: {package.available_units}, Requested: {quantity}'
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -271,7 +274,8 @@ class GenerateTransactionView(APIView):
             transaction_id=transaction_id,
             user=request.user,  # Use the authenticated user
             package=package,
-            status='pending'
+            status='pending',
+            quantity=quantity
         )
 
         return Response(
@@ -281,7 +285,8 @@ class GenerateTransactionView(APIView):
                 'data': {
                     'transaction_id': transaction_id,
                     'package_id': package.id,
-                    'created_at': transaction.created_at
+                    'created_at': transaction.created_at,
+                    'quantity': quantity
                 }
             },
             status=status.HTTP_201_CREATED
@@ -326,7 +331,7 @@ class PurchasePackageView(APIView):
 
         # Update available units
         package = transaction.package
-        package.available_units -= 1
+        package.available_units -= transaction.quantity
         package.save()
 
         return Response(
@@ -337,7 +342,8 @@ class PurchasePackageView(APIView):
                     'package_id': package.id,
                     'user_id': request.user.id,
                     'transaction_id': transaction.transaction_id,
-                    'purchase_date': transaction.purchase_date
+                    'purchase_date': transaction.purchase_date,
+                    'quantity': transaction.quantity
                 }
             },
             status=status.HTTP_200_OK

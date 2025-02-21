@@ -90,6 +90,7 @@ class Transaction(models.Model):
     package = models.ForeignKey('TripPackage', on_delete=models.CASCADE, related_name='transactions')
     created_at = models.DateTimeField(default=timezone.now)  # Timestamp of the transaction creation
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')  # Transaction status
+    quantity = models.PositiveIntegerField(default=1)  # Number of packages to buy
 
     # Fields for completed transactions
     purchase_date = models.DateTimeField(null=True, blank=True)  # Timestamp of the purchase confirmation
