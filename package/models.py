@@ -2,7 +2,10 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from product.models import Product, Image
+from django.contrib.auth import get_user_model
 from django.db.models import Q
+
+User = get_user_model()
 
 class TripPackage(models.Model):
     name = models.CharField(max_length=100)
@@ -53,24 +56,44 @@ class TripPackage(models.Model):
             queryset = queryset.filter(start_date__gte=date_start)
         if date_end := kwargs.get('date_end'):
             queryset = queryset.filter(end_date__lte=date_end)
-        
+
         # Filter by hotel name
         if hotel_name := kwargs.get('hotel_name'):
             queryset = queryset.filter(hotel__name__icontains=hotel_name)
-        
+
         # Filter by airline name
         if flight_airline := kwargs.get('flight_airline'):
             queryset = queryset.filter(flight__name__icontains=flight_airline)
-        
+
         # Filter by published status
         if 'published' in kwargs:
             queryset = queryset.filter(published=kwargs['published'])
-        
+
         # Sort by price or date
         if sort_by := kwargs.get('sort_by'):
             if sort_by == 'price':
                 queryset = queryset.order_by('price')
             elif sort_by == 'date':
                 queryset = queryset.order_by('start_date')
-        
+
         return queryset
+
+class Transaction(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    transaction_id = models.CharField(max_length=100, unique=True)  # Unique transaction ID
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')  # Link to the User model
+    package = models.ForeignKey('TripPackage', on_delete=models.CASCADE, related_name='transactions')
+    created_at = models.DateTimeField(default=timezone.now)  # Timestamp of the transaction creation
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')  # Transaction status
+
+    # Fields for completed transactions
+    purchase_date = models.DateTimeField(null=True, blank=True)  # Timestamp of the purchase confirmation
+    card_number = models.CharField(max_length=16, null=True, blank=True)  # Last 4 digits of the card
+
+    def __str__(self):
+        return f"Transaction {self.transaction_id} for Package {self.package.name} (Status: {self.status})"

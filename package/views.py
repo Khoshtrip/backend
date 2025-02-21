@@ -1,12 +1,14 @@
+import uuid
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
-from .models import TripPackage
-from .serializers import TripPackageSerializer, TripPackageListSerializer
+from .models import TripPackage, Transaction
+from .serializers import TripPackageSerializer, TripPackageListSerializer, PurchasePackageSerializer
 from authorization.permissions import IsPackageMaker, IsPackageMakerOrCustomer
 from datetime import datetime
 from django.shortcuts import get_object_or_404
@@ -243,3 +245,133 @@ class PackageDetailView(APIView):
         package = get_object_or_404(TripPackage, id=package_id)
         package.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GenerateTransactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, package_id):
+        package = get_object_or_404(TripPackage, id=package_id)
+
+        # Validate available units
+        if package.available_units < 1:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'No available units for this package'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate a unique transaction ID
+        transaction_id = str(uuid.uuid4())
+
+        # Create a pending transaction
+        transaction = Transaction.objects.create(
+            transaction_id=transaction_id,
+            user=request.user,  # Use the authenticated user
+            package=package,
+            status='pending'
+        )
+
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Transaction ID generated successfully',
+                'data': {
+                    'transaction_id': transaction_id,
+                    'package_id': package.id,
+                    'created_at': transaction.created_at
+                }
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+class PurchasePackageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, transaction_id):
+        # Find the transaction
+        transaction = get_object_or_404(Transaction, transaction_id=transaction_id, user=request.user)
+
+        # Check if the transaction is already completed or cancelled
+        if transaction.status != 'pending':
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Transaction is already completed or cancelled'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate request data
+        serializer = PurchasePackageSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Invalid payment details',
+                    'errors': serializer.errors
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        card_number = serializer.validated_data['card_number']
+
+        # Mark the transaction as completed
+        transaction.status = 'completed'
+        transaction.purchase_date = timezone.now()
+        transaction.card_number = card_number[-4:]  # Store only the last 4 digits
+        transaction.save()
+
+        # Update available units
+        package = transaction.package
+        package.available_units -= 1
+        package.save()
+
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Package purchased successfully',
+                'data': {
+                    'package_id': package.id,
+                    'user_id': request.user.id,
+                    'transaction_id': transaction.transaction_id,
+                    'purchase_date': transaction.purchase_date
+                }
+            },
+            status=status.HTTP_200_OK
+        )
+
+class CancelTransactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, transaction_id):
+        # Find the transaction
+        transaction = get_object_or_404(Transaction, transaction_id=transaction_id, user=request.user)
+
+        # Check if the transaction is already completed or cancelled
+        if transaction.status != 'pending':
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Transaction is already completed or cancelled'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Mark the transaction as cancelled
+        transaction.status = 'cancelled'
+        transaction.save()
+
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Transaction cancelled successfully',
+                'data': {
+                    'transaction_id': transaction.transaction_id,
+                    'status': transaction.status
+                }
+            },
+            status=status.HTTP_200_OK
+        )
