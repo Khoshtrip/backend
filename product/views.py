@@ -1,29 +1,25 @@
 from django.db import transaction
-from django.http import Http404
+from django.db.models import F
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-
-from utils.error_codes import ErrorCodes
-from .serializers import ProductSerializer
-from rest_framework.permissions import IsAuthenticated
-from authorization.permissions import IsProvider
-from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
-from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
 from rest_framework.filters import SearchFilter
+from rest_framework.generics import ListAPIView
+from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from authorization.permissions import IsProvider
+from utils.error_codes import ErrorCodes
+from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
+from .filters import ProductFilter
+from .models import Image
 from .models import Product
 from .pagination import CustomPagination
-from .filters import ProductFilter
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser
-from rest_framework import status
-from django.http import FileResponse, Http404
-from .models import Image
-from rest_framework.permissions import AllowAny
+from .serializers import ProductSerializer
 
 
 class ImageUploadView(APIView):
@@ -310,20 +306,37 @@ class ProductChangeStockView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             product_ids = [update for update in updates]
-            products = Product.objects.filter(id__in=product_ids, provider=request.user.provider_profile)
 
-            if products.count() != len(product_ids):
-                return Response({
-                    'status': 'error',
-                    'message': 'One or more products not found or you do not have permission to update them.',
-                    'code': ErrorCodes.NOT_FOUND,
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Update stock for each product
+            # Use SELECT FOR UPDATE to lock rows and prevent race conditions
             with transaction.atomic():
-                for product in products:
-                    product.stock += stock_change
-                    product.save()
+                products = (
+                    Product.objects
+                    .select_for_update()
+                    .filter(id__in=product_ids, provider=request.user.provider_profile)
+                )
+
+                if products.count() != len(product_ids):
+                    return Response({
+                        'status': 'error',
+                        'message': 'One or more products not found or you do not have permission to update them.',
+                        'code': ErrorCodes.NOT_FOUND,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Ensure stock does not go negative before updating
+                insufficient_stock = [
+                    product.id for product in products
+                    if product.stock + stock_change < 0
+                ]
+
+                if insufficient_stock:
+                    return Response({
+                        'status': 'error',
+                        'message': f'Insufficient stock for products {insufficient_stock}. Stock cannot go negative.',
+                        'code': ErrorCodes.INVALID_INPUT,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Update stock atomically using F expressions
+                Product.objects.filter(id__in=product_ids).update(stock=F('stock') + stock_change)
 
             return Response({
                 'status': 'success',
