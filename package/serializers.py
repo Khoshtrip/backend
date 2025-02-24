@@ -61,3 +61,36 @@ class TripPackageSerializer(serializers.ModelSerializer):
 
         return data
 
+class PurchasePackageSerializer(serializers.Serializer):
+    card_number = serializers.CharField(max_length=16)
+    expiration_date = serializers.CharField(max_length=5)
+    cvv2 = serializers.CharField(max_length=4)
+    pin = serializers.CharField(max_length=4)
+    quantity = serializers.IntegerField(default=1, min_value=1)
+
+    def validate(self, data):
+        # Validate card number (mock validation)
+        if not data['card_number'].isdigit() or len(data['card_number']) != 16:
+            raise serializers.ValidationError({'card_number': 'Invalid card number'})
+
+        # Validate expiration date (mock validation)
+        try:
+            month, year = data['expiration_date'].split('/')
+            if not (1 <= int(month) <= 12):
+                raise serializers.ValidationError({'expiration_date': 'Invalid expiration date'})
+        except (ValueError, IndexError):
+            raise serializers.ValidationError({'expiration_date': 'Invalid expiration date format (MM/YY)'})
+
+        # Validate CVV2 (mock validation)
+        if not data['cvv2'].isdigit() or len(data['cvv2']) not in [3, 4]:
+            raise serializers.ValidationError({'cvv2': 'Invalid CVV2'})
+
+        # Validate PIN (mock validation)
+        if not data['pin'].isdigit() or len(data['pin']) != 4:
+            raise serializers.ValidationError({'pin': 'Invalid PIN'})
+
+        # Validate quantity
+        if data['quantity'] < 1:
+            raise serializers.ValidationError({'quantity': 'Quantity must be at least 1'})
+
+        return data
