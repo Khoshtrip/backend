@@ -61,6 +61,24 @@ class RegisterProviderSerializer(serializers.Serializer):
         return user
 
 
+class RegisterPackageMakerSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = BaseUser
+        fields = [
+            'first_name', 'last_name', 'phone_number', 'email', 'national_id', 'password'
+        ]
+
+    def create(self, validated_data):
+        validated_data['role'] = 'package_maker'
+        password = validated_data.pop('password')
+        user = BaseUser.objects.create_user(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+
 class LoginSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
     password = serializers.CharField()
