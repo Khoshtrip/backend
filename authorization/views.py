@@ -14,6 +14,7 @@ from .serializers import (
     LogoutSerializer,
     RefreshTokenSerializer,
     UserDetailSerializer,
+    RegisterPackageMakerSerializer,
 )
 import random
 from utils.exceptions import ValidationError, ResourceNotFoundError, AuthenticationError
@@ -114,6 +115,17 @@ class RegisterProviderView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response({'status': 'success', 'message': 'Provider registered successfully.'})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RegisterPackageMakerView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RegisterPackageMakerSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'status': 'success', 'message': 'Package Maker registered successfully.'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from authorization.permissions import IsProvider
+from authorization.permissions import IsPackageMaker
 from utils.error_codes import ErrorCodes
 from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
 from .filters import ProductFilter
@@ -132,7 +133,7 @@ class ProductDetailsView(APIView):
                 'errors': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-        if request.user != product.provider.user:
+        if (request.user != product.provider.user) and (request.user.role != 'package_maker'):
             return Response({
                 'status': 'error',
                 'message': 'You do not have permission to access this product',
@@ -289,6 +290,40 @@ class ProductDeactivateView(APIView):
                 raise e
             raise ValidationError(str(e))
 
+class AllProductsListView(ListAPIView):
+    permission_classes = [IsAuthenticated, IsPackageMaker]
+    serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ['name', 'summary', 'description']
+    filterset_class = ProductFilter
+    pagination_class = CustomPagination
+
+    def get_queryset(self):
+        queryset = Product.objects.filter(isActive=True)
+        product_type = self.request.query_params.get('type', None)
+        
+        if product_type:
+            # Split the type parameter in case multiple types are provided
+            product_types = product_type.split(',')
+            # Filter for the specified product types
+            queryset = queryset.filter(category__in=product_types)
+        
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'status': 'success',
+            'message': 'Products retrieved successfully',
+            'data': serializer.data
+        })
 class ProductChangeStockView(APIView):
     permission_classes = [IsAuthenticated, IsProvider]
 
