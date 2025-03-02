@@ -1,6 +1,8 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
+
+from authorization.models import BaseUser
 from product.models import Product, Image
 from django.contrib.auth import get_user_model
 from django.db.models import Q
@@ -98,3 +100,14 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"Transaction {self.transaction_id} for Package {self.package.name} (Status: {self.status})"
+
+class PurchaseHistory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='purchase_history')
+    package = models.ForeignKey('TripPackage', on_delete=models.CASCADE, related_name='purchase_history')
+    transaction = models.OneToOneField('Transaction', on_delete=models.CASCADE, related_name='purchase_history')
+    purchase_date = models.DateTimeField(default=timezone.now)
+    quantity = models.PositiveIntegerField(default=1)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"Purchase by {self.user.phone_number} for {self.package.name} on {self.purchase_date}"
