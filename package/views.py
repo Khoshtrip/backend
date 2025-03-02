@@ -7,7 +7,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
-from .models import TripPackage, Transaction
+from .models import TripPackage, Transaction, PurchaseHistory
 from .serializers import TripPackageSerializer, TripPackageListSerializer, PurchasePackageSerializer
 from authorization.permissions import IsPackageMaker, IsPackageMakerOrCustomer
 from datetime import datetime
@@ -334,6 +334,17 @@ class PurchasePackageView(APIView):
         package.available_units -= transaction.quantity
         package.save()
 
+        # Save purchase history
+        total_price = package.price * transaction.quantity
+        PurchaseHistory.objects.create(
+            user=request.user,
+            package=package,
+            transaction=transaction,
+            purchase_date=transaction.purchase_date,
+            quantity=transaction.quantity,
+            total_price=total_price
+        )
+
         return Response(
             {
                 'status': 'success',
@@ -343,7 +354,8 @@ class PurchasePackageView(APIView):
                     'user_id': request.user.id,
                     'transaction_id': transaction.transaction_id,
                     'purchase_date': transaction.purchase_date,
-                    'quantity': transaction.quantity
+                    'quantity': transaction.quantity,
+                    'total_price': total_price
                 }
             },
             status=status.HTTP_200_OK
@@ -378,6 +390,32 @@ class CancelTransactionView(APIView):
                     'transaction_id': transaction.transaction_id,
                     'status': transaction.status
                 }
+            },
+            status=status.HTTP_200_OK
+        )
+
+class UserPurchaseHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Retrieve the purchase history for the authenticated user
+        purchase_history = PurchaseHistory.objects.filter(user=request.user).select_related('package', 'transaction')
+
+        # Serialize the data
+        history_data = []
+        for purchase in purchase_history:
+            history_data.append({
+                'package_name': purchase.package.name,
+                'purchase_date': purchase.purchase_date,
+                'quantity': purchase.quantity,
+                'total_price': purchase.total_price,
+                'transaction_id': purchase.transaction.transaction_id
+            })
+
+        return Response(
+            {
+                'status': 'success',
+                'data': history_data
             },
             status=status.HTTP_200_OK
         )
