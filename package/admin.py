@@ -3,15 +3,15 @@ from .models import TripPackage
 
 @admin.register(TripPackage)
 class TripPackageAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'start_date', 'end_date', 'available_units', 'published')
+    list_display = ('name', 'price', 'start_date', 'end_date', 'available_units', 'published', 'rating')
     list_filter = ('published', 'start_date', 'end_date')
     search_fields = ('name', 'description')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at', 'rating',)
     filter_horizontal = ('activities',)
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'description', 'price', 'available_units', 'published')
+            'fields': ('name', 'description', 'price', 'available_units', 'published', 'rating')
         }),
         ('Dates', {
             'fields': ('start_date', 'end_date')
