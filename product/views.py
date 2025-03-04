@@ -2,6 +2,21 @@ from django.db import transaction
 from django.db.models import F
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from utils.cache_decorators import cache_view, cache_page_with_params
+from utils.cache_monitoring import monitored_cache_view, MonitoredCacheMixin
+
+from utils.error_codes import ErrorCodes
+from .serializers import ProductSerializer
+from rest_framework.permissions import IsAuthenticated
+from authorization.permissions import IsProvider
+from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
+from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.filters import SearchFilter
@@ -63,6 +78,7 @@ class ImageDeleteView(APIView):
 
 class ImageDownloadView(APIView):
     permission_classes = [AllowAny]
+    
     def get(self, request, imageId, *args, **kwargs):
         try:
             image = Image.objects.get(id=imageId)
@@ -108,45 +124,63 @@ class ProductCreateView(APIView):
                 raise e
             raise ValidationError(str(e))
 
-class ProductListView(ListAPIView):
+class ProductListView(MonitoredCacheMixin, ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['name', 'summary', 'description']
     filterset_class = ProductFilter
     pagination_class = CustomPagination
-
+    cache_timeout = 60 * 5  # 5 minutes
+    cache_key_prefix = 'product_list'
+    
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+        
     def get_queryset(self):
-        user = self.request.user
-        return Product.objects.filter(provider=user.provider_profile)
+        if hasattr(self.request.user, 'provider_profile'):
+            return Product.objects.filter(provider=self.request.user.provider_profile, isActive=True)
+        return Product.objects.none()
 
-
-class ProductDetailsView(APIView):
+class ProductDetailsView(MonitoredCacheMixin, APIView):
+    cache_timeout = 60 * 5  # 5 minutes
+    cache_key_prefix = 'product_detail'
+    
     def get(self, request, product_id):
         try:
-            product = get_object_or_404(Product, id=product_id)
-        except Http404:
+            product = get_object_or_404(Product, id=product_id, isActive=True)
+            
+            # Check if the user is the provider of the product or a package maker
+            is_provider = hasattr(request.user, 'provider_profile') and product.provider == request.user.provider_profile
+            is_package_maker = hasattr(request.user, 'is_package_maker') and request.user.is_package_maker
+            
+            if not (is_provider or is_package_maker):
+                raise PermissionDenied("You don't have permission to view this product.")
+                
+            serializer = ProductSerializer(product)
+            return Response({
+                'status': 'success',
+                'message': 'Product details retrieved successfully',
+                'data': serializer.data
+            })
+        except Product.DoesNotExist:
             return Response({
                 'status': 'error',
                 'message': 'Product not found',
                 'code': ErrorCodes.NOT_FOUND,
-                'errors': None
             }, status=status.HTTP_404_NOT_FOUND)
-
-        if (request.user != product.provider.user) and (request.user.role != 'package_maker'):
+        except PermissionDenied as e:
             return Response({
                 'status': 'error',
-                'message': 'You do not have permission to access this product',
-                'code': 'PERM_001',
-                'errors': None
+                'message': str(e),
+                'code': ErrorCodes.PERMISSION_DENIED,
             }, status=status.HTTP_403_FORBIDDEN)
-
-        serializer = ProductSerializer(product)
-        return Response({
-            'status': 'success',
-            'message': 'Product retrieved successfully',
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e),
+                'code': ErrorCodes.INTERNAL_ERROR,
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, product_id):
         try:
@@ -290,40 +324,22 @@ class ProductDeactivateView(APIView):
                 raise e
             raise ValidationError(str(e))
 
-class AllProductsListView(ListAPIView):
+class AllProductsListView(MonitoredCacheMixin, ListAPIView):
     permission_classes = [IsAuthenticated, IsPackageMaker]
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     search_fields = ['name', 'summary', 'description']
     filterset_class = ProductFilter
     pagination_class = CustomPagination
-
-    def get_queryset(self):
-        queryset = Product.objects.filter(isActive=True)
-        product_type = self.request.query_params.get('type', None)
-        
-        if product_type:
-            # Split the type parameter in case multiple types are provided
-            product_types = product_type.split(',')
-            # Filter for the specified product types
-            queryset = queryset.filter(category__in=product_types)
-        
-        return queryset
-
+    cache_timeout = 60 * 5  # 5 minutes
+    cache_key_prefix = 'all_products_list'
+    
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
+        return super().list(request, *args, **kwargs)
         
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+    def get_queryset(self):
+        return Product.objects.filter(isActive=True)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'status': 'success',
-            'message': 'Products retrieved successfully',
-            'data': serializer.data
-        })
 class ProductChangeStockView(APIView):
     permission_classes = [IsAuthenticated, IsProvider]
 
