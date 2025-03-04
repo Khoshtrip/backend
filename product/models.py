@@ -2,6 +2,8 @@ from django.db import models
 from django.utils import timezone
 from authorization.models import ProviderProfile
 from django.db import models
+from django.core.cache import cache
+from utils.cache_utils import invalidate_model_caches
 
 
 class Image(models.Model):
@@ -11,6 +13,20 @@ class Image(models.Model):
     # uploader = models.ForeignKey(
     #     'auth.User', on_delete=models.CASCADE, related_name='images'
     # )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        
+        invalidate_model_caches('image', self.id)
+    
+    def delete(self, *args, **kwargs):
+        image_id = self.id
+        super().delete(*args, **kwargs)
+        
+        invalidate_model_caches('image', image_id)
+    
+    def __str__(self):
+        return f"Image {self.id}"
 
 class Product(models.Model):
     CATEGORY_CHOICES = [
@@ -37,3 +53,15 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Clear cache when a product is saved or updated
+        super().save(*args, **kwargs)
+        
+        invalidate_model_caches('product', self.id, related_models=['package'])
+    
+    def delete(self, *args, **kwargs):
+        product_id = self.id
+        super().delete(*args, **kwargs)
+        
+        invalidate_model_caches('product', product_id, related_models=['package'])

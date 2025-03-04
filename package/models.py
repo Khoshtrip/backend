@@ -1,6 +1,8 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
+from django.core.cache import cache
+from utils.cache_utils import invalidate_model_caches
 
 from authorization.models import BaseUser
 from product.models import Product, Image
@@ -33,8 +35,17 @@ class TripPackage(models.Model):
             raise ValidationError('Start date must be before end date')
 
     def save(self, *args, **kwargs):
+        # Clear cache when a package is saved or updated
         self.clean()
         super().save(*args, **kwargs)
+        
+        invalidate_model_caches('package', self.id, related_models=['product'])
+
+    def delete(self, *args, **kwargs):
+        package_id = self.id
+        super().delete(*args, **kwargs)
+        
+        invalidate_model_caches('package', package_id, related_models=['product'])
 
     def __str__(self):
         return self.name
@@ -98,8 +109,16 @@ class Transaction(models.Model):
     purchase_date = models.DateTimeField(null=True, blank=True)  # Timestamp of the purchase confirmation
     card_number = models.CharField(max_length=16, null=True, blank=True)  # Last 4 digits of the card
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old_instance = Transaction.objects.get(pk=self.pk)
+            if old_instance.status != 'completed' and self.status == 'completed':
+                invalidate_model_caches('package', self.package.id)
+        
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Transaction {self.transaction_id} for Package {self.package.name} (Status: {self.status})"
+        return f"Transaction {self.transaction_id} - {self.status}"
 
 class PurchaseHistory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='purchase_history')
@@ -109,5 +128,20 @@ class PurchaseHistory(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        
+        invalidate_model_caches('purchase_history')
+        
+        invalidate_model_caches('package', self.package.id)
+    
+    def delete(self, *args, **kwargs):
+        package_id = self.package.id
+        super().delete(*args, **kwargs)
+        
+        invalidate_model_caches('purchase_history')
+        
+        invalidate_model_caches('package', package_id)
+    
     def __str__(self):
-        return f"Purchase by {self.user.phone_number} for {self.package.name} on {self.purchase_date}"
+        return f"Purchase by {self.user.email} - Package: {self.package.name}"

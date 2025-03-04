@@ -7,20 +7,29 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from utils.cache_decorators import cache_view
+from utils.cache_monitoring import monitored_cache_view, MonitoredCacheMixin
 from .models import TripPackage, Transaction, PurchaseHistory
 from .serializers import TripPackageSerializer, TripPackageListSerializer, PurchasePackageSerializer
 from authorization.permissions import IsPackageMaker, IsPackageMakerOrCustomer
 from datetime import datetime
 from django.shortcuts import get_object_or_404
+from django.core.cache import cache
+from django.conf import settings
+from utils.cache_utils import invalidate_model_caches
 
 class PackagePagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'per_page'
     max_page_size = 100
 
-class PackageListView(APIView):
+class PackageListView(MonitoredCacheMixin, APIView):
     permission_classes = [IsAuthenticated, IsPackageMakerOrCustomer]
     pagination_class = PackagePagination
+    cache_timeout = 60 * 5  # 5 minutes
+    cache_key_prefix = 'package_list'
 
     def get(self, request):
         total_packages = TripPackage.objects.all().count()
@@ -168,25 +177,26 @@ class PackageCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-class PackageDetailView(APIView):
+class PackageDetailView(MonitoredCacheMixin, APIView):
     permission_classes = [IsAuthenticated, IsPackageMakerOrCustomer]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
+    cache_timeout = 60 * 5  # 5 minutes
+    cache_key_prefix = 'package_detail'
 
     def get(self, request, package_id):
-        package = get_object_or_404(
-            TripPackage.objects.select_related('flight', 'hotel').prefetch_related('activities'),
-            id=package_id
-        )
-        
-        serializer = TripPackageListSerializer(package)
-        
-        return Response(
-            {
+        try:
+            package = TripPackage.objects.get(id=package_id)
+            serializer = TripPackageSerializer(package)
+            return Response({
                 'status': 'success',
+                'message': 'Package details retrieved successfully',
                 'data': serializer.data
-            },
-            status=status.HTTP_200_OK
-        )
+            }, status=status.HTTP_200_OK)
+        except TripPackage.DoesNotExist:
+            return Response({
+                'status': 'error',
+                'message': 'Package not found',
+            }, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, package_id):
         if not IsPackageMaker().has_permission(request, self):
@@ -394,8 +404,10 @@ class CancelTransactionView(APIView):
             status=status.HTTP_200_OK
         )
 
-class UserPurchaseHistoryView(APIView):
+class UserPurchaseHistoryView(MonitoredCacheMixin, APIView):
     permission_classes = [IsAuthenticated]
+    cache_timeout = 60 * 5  # 5 minutes
+    cache_key_prefix = 'user_purchase_history'
 
     def get(self, request):
         # Retrieve the purchase history for the authenticated user
