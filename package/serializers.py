@@ -17,7 +17,7 @@ class TripPackageListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'photos', 'flight', 'hotel',
             'activities', 'price', 'start_date', 'end_date', 'published',
-            'available_units'
+            'available_units', 'rating', 'ratings_count'
         ]
 
 class TripPackageSerializer(serializers.ModelSerializer):
@@ -27,7 +27,7 @@ class TripPackageSerializer(serializers.ModelSerializer):
             'id', 'name', 'photos', 'flight', 'hotel',
             'activities', 'price', 'start_date', 'end_date',
             'available_units', 'published', 'description',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'rating', 'rating_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
 

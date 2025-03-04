@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     PackageCreateView, PackageListView, PackageDetailView, GenerateTransactionView, PurchasePackageView,
-    CancelTransactionView, UserPurchaseHistoryView
+    CancelTransactionView, RatePackageAPIView, GetPackageRatingAPIView,
+    UserPurchaseHistoryView
 )
 
 urlpatterns = [
@@ -12,4 +13,6 @@ urlpatterns = [
     path('transactions/<str:transaction_id>/purchase/', PurchasePackageView.as_view(), name='purchase-package'),
     path('transactions/<str:transaction_id>/cancel/', CancelTransactionView.as_view(), name='cancel-transaction'),
     path('customer/purchase-history/', UserPurchaseHistoryView.as_view(), name='user-purchase-history'),
+    path('packages/<int:package_id>/rate/', RatePackageAPIView.as_view(), name='rate-package'),
+    path('packages/<int:package_id>/rating/', GetPackageRatingAPIView.as_view(), name='get-package-rating'),
 ]

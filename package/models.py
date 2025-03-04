@@ -8,6 +8,7 @@ from authorization.models import BaseUser
 from product.models import Product, Image
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.conf import settings
 
 User = get_user_model()
 
@@ -26,6 +27,10 @@ class TripPackage(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
+    rating = models.FloatField(default=0.0)
+    ratings_count = models.PositiveIntegerField(default=0)
+    ratings_sum = models.FloatField(default=0.0)
+
     class Meta:
         ordering = ['-created_at']
 
@@ -33,6 +38,17 @@ class TripPackage(models.Model):
         from django.core.exceptions import ValidationError
         if self.start_date and self.end_date and self.start_date >= self.end_date:
             raise ValidationError('Start date must be before end date')
+
+    def update_rating(self, new_rating: int):
+        """
+        Update the package rating with a new integer rating (1-5).
+        """
+        # update cumulative sum and count
+        ratings = self.user_ratings.all()  # related_name from PackageRating
+        self.ratings_count = ratings.count()
+        self.ratings_sum = sum(r.rating for r in ratings)
+        self.rating = self.ratings_sum / self.ratings_count if self.ratings_count else 0.0
+        self.save()
 
     def save(self, *args, **kwargs):
         # Clear cache when a package is saved or updated
@@ -145,3 +161,19 @@ class PurchaseHistory(models.Model):
     
     def __str__(self):
         return f"Purchase by {self.user.email} - Package: {self.package.name}"
+
+
+class PackageRating(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    package = models.ForeignKey(TripPackage, on_delete=models.CASCADE, related_name="user_ratings")
+    rating = models.PositiveSmallIntegerField()
+
+    class Meta:
+        unique_together = ('user', 'package')
+        # Optionally, add an index:
+        indexes = [
+            models.Index(fields=['user', 'package']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.package} : {self.rating}"

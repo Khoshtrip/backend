@@ -11,7 +11,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from utils.cache_decorators import cache_view
 from utils.cache_monitoring import monitored_cache_view, MonitoredCacheMixin
-from .models import TripPackage, Transaction, PurchaseHistory
+from .models import TripPackage, Transaction, PurchaseHistory, PackageRating
 from .serializers import TripPackageSerializer, TripPackageListSerializer, PurchasePackageSerializer
 from authorization.permissions import IsPackageMaker, IsPackageMakerOrCustomer
 from datetime import datetime
@@ -19,6 +19,7 @@ from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 from django.conf import settings
 from utils.cache_utils import invalidate_model_caches
+from rest_framework.decorators import api_view
 
 class PackagePagination(PageNumberPagination):
     page_size = 10
@@ -256,7 +257,6 @@ class PackageDetailView(MonitoredCacheMixin, APIView):
         package.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
 class GenerateTransactionView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -431,3 +431,58 @@ class UserPurchaseHistoryView(MonitoredCacheMixin, APIView):
             },
             status=status.HTTP_200_OK
         )
+class RatePackageAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, package_id, format=None):
+        try:
+            package = TripPackage.objects.get(id=package_id)
+        except TripPackage.DoesNotExist:
+            return Response({"error": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        rating = request.data.get('rating')
+        try:
+            rating = int(rating)
+        except (TypeError, ValueError):
+            return Response({"error": "Rating must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if rating < 1 or rating > 5:
+            return Response({"error": "Rating must be between 1 and 5."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        # Attempt to get an existing rating for this user and package.
+        rating_obj, created = PackageRating.objects.get_or_create(
+            user=user,
+            package=package,
+            defaults={'rating': rating}
+        )
+        if not created:
+            # If the rating exists, update it.
+            rating_obj.rating = rating
+            rating_obj.save()
+
+        # Update the package's aggregate rating.
+        package.update_rating(rating)
+
+        return Response({
+            "message": "Rating submitted successfully.",
+            "package_rating": package.rating,
+            "ratings_count": package.ratings_count,
+        }, status=status.HTTP_200_OK)
+
+
+class GetPackageRatingAPIView(APIView):
+    permission_classes = [] 
+
+    def get(self, request, package_id, format=None):
+        try:
+            package = TripPackage.objects.get(id=package_id)
+        except TripPackage.DoesNotExist:
+            return Response({"error": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = {
+            "package_id": package.id,
+            "rating": package.rating,
+            "ratings_count": package.ratings_count,
+        }
+        return Response(data, status=status.HTTP_200_OK)
