@@ -68,10 +68,8 @@ class ImageDeleteView(APIView):
             status=status.HTTP_200_OK
         )
 
-class ImageDownloadView(MonitoredCacheMixin, APIView):
+class ImageDownloadView(APIView):
     permission_classes = [AllowAny]
-    cache_timeout = 60 * 15  # 15 minutes
-    cache_key_prefix = 'image_download'
     
     def get(self, request, imageId, *args, **kwargs):
         try:

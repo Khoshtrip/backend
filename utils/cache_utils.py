@@ -218,7 +218,8 @@ def invalidate_model_caches(model_name, instance_id=None, related_models=None):
             patterns.append(f"view_cache:*package_list*")
             patterns.append(f"view_cache:*package_detail*")
         elif model_name == 'image':
-            patterns.append(f"view_cache:*image_download*")
+            # No need to invalidate image download cache as it's no longer cached
+            pass
         
         print(f"Invalidating cache patterns: {patterns}")
         
