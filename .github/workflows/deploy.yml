@@ -17,10 +17,19 @@ jobs:
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: test
+          
+      - name: SSH and Deploy
         run: |
-          whoami
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+
+          cd /srv/backend
+          git pull origin main
+          
+          cd /srv/Infra
+          git pull origin main
+          docker-compose down
+          docker-compose up -d --build
+          EOF
 
 #       - name: SSH and Deploy
 #         uses: appleboy/ssh-action@v1.2.1
