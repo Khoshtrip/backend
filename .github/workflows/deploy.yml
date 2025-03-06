@@ -20,18 +20,13 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/user01/backend
-
+            cd /srv/backend
             # Pull latest changes
             git pull origin master
 
-            # Build the backend image
-            docker build -t backend:v1.0.0
-
-            cd /home/user01/infra
+            cd /srv/Infra
             
             # Stop the containers
             docker-compose down
-            
             # Start the test containers
-            docker-compose -f docker-compose.backend.yml up -d
+            docker-compose -f docker-compose.yml up -d --build
