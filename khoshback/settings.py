@@ -14,6 +14,18 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv('local.env')
+
+def get_conf(key: str, cast_to_bool: bool = False):
+    value = os.environ.get(key)
+    if value is None:
+        raise EnvironmentError(f'{key} environment variable is not set.')
+    if cast_to_bool:
+        return value in ['true', 'True']
+    return value
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,12 +39,12 @@ os.makedirs(BASE_LOG_DIR, exist_ok=True)
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+&u0+2dibw=k!&-=6t7n-y!=d!rj3s9_&yji#_jfxyrj@@)omu'
+SECRET_KEY = get_conf("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = get_conf('DEBUG', cast_to_bool=True)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [host.strip() for host in get_conf('ALLOWED_HOSTS').split(',')]
 
 
 # Application definition
@@ -96,7 +108,7 @@ WSGI_APPLICATION = 'khoshback.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'data' / 'db.sqlite3',
     }
 }
 
@@ -164,12 +176,9 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Frontend dev server
-    "https://your-production-frontend.com",  # Production frontend
-]
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in get_conf('CORS_ALLOWED_ORIGINS').split(',')]
 
-AUTH_USER_MODEL = 'authorization.BaseUser'
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in get_conf('CSRF_TRUSTED_ORIGINS').split(',')]
 
 
 # CORS Configuration
