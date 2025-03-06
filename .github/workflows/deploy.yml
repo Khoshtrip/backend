@@ -12,20 +12,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: SSH and Deploy
-        uses: appleboy/ssh-action@v1.2.1
+        
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
         with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /srv/backend
-            # Pull latest changes
-            git pull origin master
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-            cd /srv/Infra
-            # Stop the containers
-            docker-compose down
-            # Start the test containers
-            docker-compose -f docker-compose.yml up -d --build
+      - name: test
+        run: |
+          whoami
+
+#       - name: SSH and Deploy
+#         uses: appleboy/ssh-action@v1.2.1
+#         with:
+#           host: ${{ secrets.SERVER_IP }}
+#           username: ${{ secrets.SSH_USERNAME }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             cd /srv/backend
+#             # Pull latest changes
+#             git pull origin master
+
+#             cd /srv/Infra
+#             # Stop the containers
+#             docker-compose down
+#             # Start the test containers
+#             docker-compose -f docker-compose.yml up -d --build
+# # 
