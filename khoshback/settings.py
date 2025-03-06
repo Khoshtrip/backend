@@ -29,6 +29,11 @@ def get_conf(key: str, cast_to_bool: bool = False):
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Base directory for log files
+BASE_LOG_DIR = os.path.join(BASE_DIR, 'logs')
+# Create logs directory if it doesn't exist
+os.makedirs(BASE_LOG_DIR, exist_ok=True)
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -57,6 +62,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     # Local
     'authorization',
+    'product',
+    'package',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -70,7 +78,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Libraries
-
+    'utils.cache_middleware.CacheControlMiddleware',  # Add cache control headers
 ]
 
 ROOT_URLCONF = 'khoshback.urls'
@@ -154,10 +162,14 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'EXCEPTION_HANDLER': 'utils.exceptions.custom_exception_handler',
+    'NON_FIELD_ERRORS_KEY': 'error',
+    'DEFAULT_PAGINATION_CLASS': 'product.pagination.CustomPagination',
+    'PAGE_SIZE': 10,
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,  # Required for blacklisting tokens
@@ -168,4 +180,77 @@ CORS_ALLOWED_ORIGINS = [origin.strip() for origin in get_conf('CORS_ALLOWED_ORIG
 
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in get_conf('CSRF_TRUSTED_ORIGINS').split(',')]
 
-AUTH_USER_MODEL = 'authorization.BaseUser'
+
+# CORS Configuration
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins (development)
+CORS_ALLOW_CREDENTIALS = True  # Allow sending credentials like cookies or Authorization headers
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Cache settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+CACHE_MIDDLEWARE_SECONDS = 300
+
+CACHE_TTL = 300
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+        'json': {
+            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
+            'format': '%(asctime)s %(name)s %(levelname)s %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_LOG_DIR, 'django.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'cache_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_LOG_DIR, 'cache_monitoring.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'json',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'cache_monitoring': {
+            'handlers': ['console', 'cache_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
