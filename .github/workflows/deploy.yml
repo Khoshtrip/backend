@@ -25,7 +25,6 @@ jobs:
             git pull origin master
 
             cd /srv/Infra
-            
             # Stop the containers
             docker-compose down
             # Start the test containers
