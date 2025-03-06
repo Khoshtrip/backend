@@ -20,7 +20,7 @@ jobs:
           
       - name: SSH and Deploy
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ env.SSH_USERNAME }}@${{ env.SERVER_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ SSH_USERNAME }}@${{ SERVER_IP }} << 'EOF'
 
           cd /srv/backend
           git pull origin main
