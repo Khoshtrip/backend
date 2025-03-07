@@ -11,3 +11,12 @@ Pillow==10.1.0
 django-redis==5.4.0
 redis==5.0.1
 python-json-logger==2.0.7
+requests==2.32.3
+tzdata==2025.1
+urllib3==2.3.0
+Faker==36.2.2
+idna==3.10
+django-prometheus==2.3.1
+prometheus_client==0.21.1
+certifi==2025.1.31
+charset-normalizer==3.4.1
