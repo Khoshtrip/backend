@@ -176,14 +176,17 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+
+AUTH_USER_MODEL = 'authorization.BaseUser'
+
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in get_conf('CORS_ALLOWED_ORIGINS').split(',')]
 
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in get_conf('CSRF_TRUSTED_ORIGINS').split(',')]
 
 
 # CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins (development)
-CORS_ALLOW_CREDENTIALS = True  # Allow sending credentials like cookies or Authorization headers
+# CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins (development)
+# CORS_ALLOW_CREDENTIALS = True  # Allow sending credentials like cookies or Authorization headers
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
