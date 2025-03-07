@@ -20,16 +20,16 @@ jobs:
           
       - name: SSH and Deploy
         run: |
-          ssh -o StrictHostKeyChecking=no user01@213.233.184.226 << 'EOF'
+          ssh -o StrictHostKeyChecking=no user01@213.233.184.226 <<< whoami
 
-          cd /srv/backend
-          git pull origin main
+          # cd /srv/backend
+          # git pull origin main
           
-          cd /srv/Infra
-          git pull origin main
-          docker-compose down
-          docker-compose up -d --build
-          EOF
+          # cd /srv/Infra
+          # git pull origin main
+          # docker-compose down
+          # docker-compose up -d --build
+          # EOF
 
 #       - name: SSH and Deploy
 #         uses: appleboy/ssh-action@v1.2.1
