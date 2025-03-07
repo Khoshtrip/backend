@@ -2,23 +2,9 @@ from django.db import transaction
 from django.db.models import F
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from utils.cache_decorators import cache_view, cache_page_with_params
-from utils.cache_monitoring import monitored_cache_view, MonitoredCacheMixin
-
-from utils.error_codes import ErrorCodes
-from .serializers import ProductSerializer
-from rest_framework.permissions import IsAuthenticated
-from authorization.permissions import IsProvider
-from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
-from rest_framework.generics import ListAPIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import ListAPIView
 from rest_framework.parsers import MultiPartParser
@@ -27,8 +13,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from authorization.permissions import IsProvider
 from authorization.permissions import IsPackageMaker
+from authorization.permissions import IsProvider
+from utils.cache_monitoring import MonitoredCacheMixin
 from utils.error_codes import ErrorCodes
 from utils.exceptions import ValidationError, PermissionError, ResourceNotFoundError
 from .filters import ProductFilter
