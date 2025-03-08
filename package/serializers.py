@@ -21,6 +21,10 @@ class TripPackageListSerializer(serializers.ModelSerializer):
         ]
 
 class TripPackageSerializer(serializers.ModelSerializer):
+    flight = ProductSerializer(read_only=True)
+    hotel = ProductSerializer(read_only=True)
+    activities = ProductSerializer(many=True, read_only=True)
+
     class Meta:
         model = TripPackage
         fields = [
