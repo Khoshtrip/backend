@@ -4,6 +4,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.core.cache import cache
+from utils.cache_utils import invalidate_model_caches
 from .models import VerificationCode, BaseUser, ProviderProfile
 from .serializers import (
     SendVerificationCodeSerializer,
@@ -155,6 +157,8 @@ class LoginView(TokenObtainPairView):
                         'code': ErrorCodes.INVALID_CREDENTIALS
                     })
 
+                invalidate_model_caches('product')
+                
                 tokens = RefreshToken.for_user(user)
                 return Response({
                     'status': 'success',

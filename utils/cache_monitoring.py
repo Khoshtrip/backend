@@ -280,6 +280,13 @@ class MonitoredCacheMixin:
     cache_timeout = None
     cache_key_prefix = ''
     
+    def get_cache_key_prefix(self):
+        """
+        Get the cache key prefix. This can be overridden by subclasses
+        to provide a dynamic prefix, e.g., based on the current user.
+        """
+        return self.cache_key_prefix
+    
     def dispatch(self, request, *args, **kwargs):
         # Don't cache for authenticated users unless they're just reading
         if request.method not in ('GET', 'HEAD') or (
@@ -290,7 +297,9 @@ class MonitoredCacheMixin:
         
         start_time = time.time()
         
-        view_name = f"{self.cache_key_prefix}_{self.__class__.__name__}" if self.cache_key_prefix else self.__class__.__name__
+        # Use get_cache_key_prefix to allow for dynamic prefixes
+        prefix = self.get_cache_key_prefix()
+        view_name = f"{prefix}_{self.__class__.__name__}" if prefix else self.__class__.__name__
         cache_key = generate_cache_key(view_name, request, *args, **kwargs)
         
         cached_response = cache.get(cache_key)

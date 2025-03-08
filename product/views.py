@@ -121,6 +121,14 @@ class ProductListView(MonitoredCacheMixin, ListAPIView):
     cache_timeout = 60 * 5  # 5 minutes
     cache_key_prefix = 'product_list'
     
+    def get_cache_key_prefix(self):
+        """
+        Override the cache key prefix to include the user ID to ensure
+        each user has their own cache.
+        """
+        user_id = self.request.user.id if self.request.user and self.request.user.is_authenticated else 'anonymous'
+        return f"{self.cache_key_prefix}_{user_id}"
+    
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
         
@@ -138,6 +146,14 @@ class ProductListView(MonitoredCacheMixin, ListAPIView):
 class ProductDetailsView(MonitoredCacheMixin, APIView):
     cache_timeout = 60 * 5  # 5 minutes
     cache_key_prefix = 'product_detail'
+    
+    def get_cache_key_prefix(self):
+        """
+        Override the cache key prefix to include the user ID to ensure
+        each user has their own cache.
+        """
+        user_id = self.request.user.id if self.request.user and self.request.user.is_authenticated else 'anonymous'
+        return f"{self.cache_key_prefix}_{user_id}"
     
     def get(self, request, product_id):
         try:
@@ -333,6 +349,14 @@ class AllProductsListView(MonitoredCacheMixin, ListAPIView):
     pagination_class = CustomPagination
     cache_timeout = 60 * 5  # 5 minutes
     cache_key_prefix = 'all_products_list'
+    
+    def get_cache_key_prefix(self):
+        """
+        Override the cache key prefix to include the user ID to ensure
+        each user has their own cache.
+        """
+        user_id = self.request.user.id if self.request.user and self.request.user.is_authenticated else 'anonymous'
+        return f"{self.cache_key_prefix}_{user_id}"
     
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
