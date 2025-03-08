@@ -21,6 +21,10 @@ class TripPackageListSerializer(serializers.ModelSerializer):
         ]
 
 class TripPackageSerializer(serializers.ModelSerializer):
+    flight = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(category='flight'), required=False)
+    hotel = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(category='hotel'), required=False)
+    activities = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(category__in=['tourism', 'restaurant']), many=True, required=False)
+    
     class Meta:
         model = TripPackage
         fields = [
@@ -30,6 +34,26 @@ class TripPackageSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'rating', 'ratings_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def to_internal_value(self, data):
+        # Handle nested objects for flight
+        if data.get('flight') and isinstance(data['flight'], dict) and 'id' in data['flight']:
+            data['flight'] = data['flight']['id']
+        
+        # Handle nested objects for hotel
+        if data.get('hotel') and isinstance(data['hotel'], dict) and 'id' in data['hotel']:
+            data['hotel'] = data['hotel']['id']
+        
+        # Handle nested objects for activities
+        if data.get('activities') and isinstance(data['activities'], list):
+            activities_ids = []
+            for activity in data['activities']:
+                if isinstance(activity, dict) and 'id' in activity:
+                    activities_ids.append(activity['id'])
+            if activities_ids:
+                data['activities'] = activities_ids
+        
+        return super().to_internal_value(data)
 
     def validate(self, data):
         # Validate start_date is before end_date
