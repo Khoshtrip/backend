@@ -161,7 +161,7 @@ class ProductDetailsView(MonitoredCacheMixin, APIView):
             
             # Check if the user is the provider of the product or a package maker
             is_provider = hasattr(request.user, 'provider_profile') and product.provider == request.user.provider_profile
-            is_package_maker = hasattr(request.user, 'is_package_maker') and request.user.is_package_maker
+            is_package_maker = request.user.role == 'package_maker' if hasattr(request.user, 'role') else False
             
             if not product.isActive and not is_provider:
                 return Response({
