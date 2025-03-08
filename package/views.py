@@ -296,46 +296,71 @@ class GenerateTransactionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, package_id):
-        package = get_object_or_404(TripPackage, id=package_id)
+        try:
+            package = get_object_or_404(TripPackage, id=package_id)
 
-        # Get the quantity from the request data
-        quantity = request.data.get('quantity', 1)
+            # Get the quantity from the request data
+            quantity = request.data.get('quantity', 1)
+            
+            # Convert quantity to integer if it's a string
+            if isinstance(quantity, str):
+                try:
+                    quantity = int(quantity)
+                except ValueError:
+                    return Response(
+                        {
+                            'status': 'error',
+                            'message': f'Invalid quantity value: {quantity}. Must be a number.'
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        # Validate available units
-        if package.available_units < quantity:
+            # Validate available units
+            if package.available_units < quantity:
+                return Response(
+                    {
+                        'status': 'error',
+                        'message': f'Not enough available units for this package. Available: {package.available_units}, Requested: {quantity}'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Generate a unique transaction ID
+            transaction_id = str(uuid.uuid4())
+
+            # Create a pending transaction
+            transaction = Transaction.objects.create(
+                transaction_id=transaction_id,
+                user=request.user,  # Use the authenticated user
+                package=package,
+                status='pending',
+                quantity=quantity
+            )
+
+            return Response(
+                {
+                    'status': 'success',
+                    'message': 'Transaction ID generated successfully',
+                    'data': {
+                        'transaction_id': transaction_id,
+                        'package_id': package.id,
+                        'created_at': transaction.created_at,
+                        'quantity': quantity
+                    }
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            import traceback
+            print(f"Error generating transaction: {str(e)}")
+            print(traceback.format_exc())
             return Response(
                 {
                     'status': 'error',
-                    'message': f'Not enough available units for this package. Available: {package.available_units}, Requested: {quantity}'
+                    'message': f'Failed to generate transaction: {str(e)}'
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        # Generate a unique transaction ID
-        transaction_id = str(uuid.uuid4())
-
-        # Create a pending transaction
-        transaction = Transaction.objects.create(
-            transaction_id=transaction_id,
-            user=request.user,  # Use the authenticated user
-            package=package,
-            status='pending',
-            quantity=quantity
-        )
-
-        return Response(
-            {
-                'status': 'success',
-                'message': 'Transaction ID generated successfully',
-                'data': {
-                    'transaction_id': transaction_id,
-                    'package_id': package.id,
-                    'created_at': transaction.created_at,
-                    'quantity': quantity
-                }
-            },
-            status=status.HTTP_201_CREATED
-        )
 
 class PurchasePackageView(APIView):
     permission_classes = [IsAuthenticated]
