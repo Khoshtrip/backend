@@ -40,8 +40,8 @@ class SendVerificationCodeView(APIView):
                     'code': ErrorCodes.USER_EXISTS
                 })
 
-            #code = str(random.randint(100000, 999999))
-            code = "123456"
+            code = str(random.randint(100000, 999999))
+            # code = "123456"
             print(f"Sending code {code}")  # For development
             VerificationCode.objects.create(phone_number=phone_number, code=code)
 

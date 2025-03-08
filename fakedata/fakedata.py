@@ -149,7 +149,7 @@ def create_trip_packages(session, access_token, num_packages):
             "flight": random.choice(flight_ids),  # Use a valid flight ID
             "hotel": random.choice(hotel_ids),    # Use a valid hotel ID
             "activities": random.sample(activity_ids, random.randint(1, 3)),  # Use valid activity IDs
-            "price": round(random.uniform(100, 2000), 2),
+            "price": round(random.uniform(100, 1000), 2),
             "start_date": "2025-03-01",
             "end_date": "2025-03-10",
             "available_units": random.randint(1, 50),
