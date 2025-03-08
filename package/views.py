@@ -25,20 +25,53 @@ class PackagePagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'per_page'
     max_page_size = 100
+    
+    def get_page_size(self, request):
+        page_size = request.query_params.get(self.page_size_query_param) or request.query_params.get('limit')
+        if page_size:
+            try:
+                return min(int(page_size), self.max_page_size)
+            except (ValueError, TypeError):
+                pass
+        return self.page_size
+    
+    def paginate_queryset(self, queryset, request, view=None):
+        offset = request.query_params.get('offset')
+        if offset:
+            if offset.lower() == "nan":
+                pass
+            else:
+                try:
+                    offset = int(offset)
+                    page_size = self.get_page_size(request)
+                    page_number = (offset // page_size) + 1
+                    request.query_params._mutable = True
+                    request.query_params['page'] = str(page_number)
+                    request.query_params._mutable = False
+                except (ValueError, TypeError, ZeroDivisionError):
+                    pass
+        
+        return super().paginate_queryset(queryset, request, view)
 
 class PackageListView(MonitoredCacheMixin, APIView):
     permission_classes = [IsAuthenticated, IsPackageMakerOrCustomer]
     pagination_class = PackagePagination
     cache_timeout = 60 * 5  # 5 minutes
     cache_key_prefix = 'package_list'
-
+    
+    def get_cache_key(self, request, *args, **kwargs):
+        query_params = request.query_params.copy()
+        sorted_params = sorted(query_params.items())
+        params_str = '&'.join(f"{k}={v}" for k, v in sorted_params)
+        return f"{self.cache_key_prefix}:{request.path}:{params_str}"
+    
     def get(self, request):
         total_packages = TripPackage.objects.all().count()
 
         # Get query parameters
         search = request.query_params.get('search')
-        price_min = request.query_params.get('price_min')
-        price_max = request.query_params.get('price_max')
+        price_min = request.query_params.get('price_min') or request.query_params.get('minPrice')
+        price_max = request.query_params.get('price_max') or request.query_params.get('maxPrice')
         sort_by = request.query_params.get('sort_by')
         published = request.query_params.get('published')
         date_start = request.query_params.get('date_start')
@@ -53,8 +86,9 @@ class PackageListView(MonitoredCacheMixin, APIView):
 
         if price_min:
             try:
-                price_min = float(price_min)
-                queryset = queryset.filter(price__gte=price_min)
+                if price_min.lower() != "nan":
+                    price_min = float(price_min)
+                    queryset = queryset.filter(price__gte=price_min)
             except ValueError:
                 return Response(
                     {'error': 'Invalid price_min value'},
@@ -63,8 +97,9 @@ class PackageListView(MonitoredCacheMixin, APIView):
 
         if price_max:
             try:
-                price_max = float(price_max)
-                queryset = queryset.filter(price__lte=price_max)
+                if price_max.lower() != "nan":
+                    price_max = float(price_max)
+                    queryset = queryset.filter(price__lte=price_max)
             except ValueError:
                 return Response(
                     {'error': 'Invalid price_max value'},
