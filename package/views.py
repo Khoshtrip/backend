@@ -20,6 +20,7 @@ from django.core.cache import cache
 from django.conf import settings
 from utils.cache_utils import invalidate_model_caches
 from rest_framework.decorators import api_view
+from django.db.models import Q
 
 class PackagePagination(PageNumberPagination):
     page_size = 10
@@ -411,7 +412,7 @@ class PurchasePackageView(APIView):
 
             # Save purchase history
             total_price = package.price * transaction.quantity
-            PurchaseHistory.objects.create(
+            purchase_history = PurchaseHistory.objects.create(
                 user=request.user,
                 package=package,
                 transaction=transaction,
@@ -480,10 +481,8 @@ class CancelTransactionView(APIView):
             status=status.HTTP_200_OK
         )
 
-class UserPurchaseHistoryView(MonitoredCacheMixin, APIView):
+class UserPurchaseHistoryView(APIView):
     permission_classes = [IsAuthenticated]
-    cache_timeout = 60 * 5  # 5 minutes
-    cache_key_prefix = 'user_purchase_history'
 
     def get(self, request):
         # Retrieve the purchase history for the authenticated user
@@ -507,6 +506,7 @@ class UserPurchaseHistoryView(MonitoredCacheMixin, APIView):
             },
             status=status.HTTP_200_OK
         )
+
 class RatePackageAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
