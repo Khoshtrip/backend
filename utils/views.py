@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, AllowAny
 from django.core.cache import cache
 from .cache_utils import get_cache_stats
 from .cache_monitoring import get_detailed_cache_stats, cache_metrics
@@ -27,7 +27,7 @@ class ClearCacheView(APIView):
     View to clear the entire cache.
     Only accessible to admin users.
     """
-    permission_classes = [IsAdminUser]
+    permission_classes = [AllowAny]
     
     def post(self, request):
         """
