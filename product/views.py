@@ -126,7 +126,13 @@ class ProductListView(MonitoredCacheMixin, ListAPIView):
         
     def get_queryset(self):
         if hasattr(self.request.user, 'provider_profile'):
-            return Product.objects.filter(provider=self.request.user.provider_profile, isActive=True)
+            queryset = Product.objects.filter(provider=self.request.user.provider_profile)
+            
+            is_active_param = self.request.query_params.get('isActive')
+            if is_active_param is None:
+                queryset = queryset.filter(isActive=True)
+            
+            return queryset
         return Product.objects.none()
 
 class ProductDetailsView(MonitoredCacheMixin, APIView):
@@ -135,11 +141,18 @@ class ProductDetailsView(MonitoredCacheMixin, APIView):
     
     def get(self, request, product_id):
         try:
-            product = get_object_or_404(Product, id=product_id, isActive=True)
+            product = get_object_or_404(Product, id=product_id)
             
             # Check if the user is the provider of the product or a package maker
             is_provider = hasattr(request.user, 'provider_profile') and product.provider == request.user.provider_profile
             is_package_maker = hasattr(request.user, 'is_package_maker') and request.user.is_package_maker
+            
+            if not product.isActive and not is_provider:
+                return Response({
+                    'status': 'error',
+                    'message': 'Product not found or inactive',
+                    'code': ErrorCodes.NOT_FOUND,
+                }, status=status.HTTP_404_NOT_FOUND)
             
             if not (is_provider or is_package_maker):
                 raise PermissionDenied("You don't have permission to view this product.")
