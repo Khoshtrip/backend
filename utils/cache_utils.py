@@ -79,15 +79,16 @@ def cache_view_result(view_name, result, request=None, timeout=None, *args, **kw
         *args: Positional arguments to include in the key
         **kwargs: Keyword arguments to include in the key
     """
-    if timeout is None:
-        timeout = getattr(settings, 'CACHE_MIDDLEWARE_SECONDS', 300)
+    # Caching disabled
+    # if timeout is None:
+    #     timeout = getattr(settings, 'CACHE_MIDDLEWARE_SECONDS', 300)
     
     cache_key = generate_cache_key(view_name, request, *args, **kwargs)
     
-    if hasattr(result, 'accepted_renderer') and not getattr(result, '_is_rendered', False):
-        result.render()
+    # if hasattr(result, 'accepted_renderer') and not getattr(result, '_is_rendered', False):
+    #     result.render()
         
-    cache.set(cache_key, result, timeout)
+    # cache.set(cache_key, result, timeout)
     return cache_key
 
 def set_cached_view_result(view_name, result, timeout=None, request=None, *args, **kwargs):
@@ -102,20 +103,21 @@ def set_cached_view_result(view_name, result, timeout=None, request=None, *args,
         *args: Positional arguments to include in the key
         **kwargs: Keyword arguments to include in the key
     """
-    if timeout is None:
-        timeout = getattr(settings, 'CACHE_MIDDLEWARE_SECONDS', 300)
+    # Caching disabled
+    # if timeout is None:
+    #     timeout = getattr(settings, 'CACHE_MIDDLEWARE_SECONDS', 300)
     
     cache_key = generate_cache_key(view_name, request, *args, **kwargs)
     
-    if hasattr(result, 'accepted_renderer') and not getattr(result, '_is_rendered', False):
-        try:
-            result.render()
-        except Exception as e:
-            # Log the error but don't fail
-            print(f"Error rendering response: {str(e)}")
-            return None
+    # if hasattr(result, 'accepted_renderer') and not getattr(result, '_is_rendered', False):
+    #     try:
+    #         result.render()
+    #     except Exception as e:
+    #         # Log the error but don't fail
+    #         print(f"Error rendering response: {str(e)}")
+    #         return None
             
-    cache.set(cache_key, result, timeout)
+    # cache.set(cache_key, result, timeout)
     return cache_key
 
 def get_cached_view_result(view_name, request=None, *args, **kwargs):
@@ -132,7 +134,9 @@ def get_cached_view_result(view_name, request=None, *args, **kwargs):
         The cached result or None if not found
     """
     cache_key = generate_cache_key(view_name, request, *args, **kwargs)
-    return cache.get(cache_key)
+    # Caching disabled
+    # return cache.get(cache_key)
+    return None
 
 def get_cache_stats():
     """

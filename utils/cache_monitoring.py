@@ -212,7 +212,8 @@ def monitored_cache_view(timeout=None, key_prefix=''):
     from .cache_decorators import cache_view
     
     def decorator(view_func):
-        cached_func = cache_view(timeout=timeout, key_prefix=key_prefix)(view_func)
+        # cached_func = cache_view(timeout=timeout, key_prefix=key_prefix)(view_func)
+        cached_func = view_func
         
         @wraps(view_func)
         def _wrapped_view(self, request, *args, **kwargs):
@@ -221,8 +222,10 @@ def monitored_cache_view(timeout=None, key_prefix=''):
             view_name = f"{key_prefix}_{view_func.__name__}" if key_prefix else view_func.__name__
             cache_key = generate_cache_key(view_name, request, *args, **kwargs)
             
-            cached_response = cache.get(cache_key)
-            cache_hit = cached_response is not None
+            # cached_response = cache.get(cache_key)
+            # cache_hit = cached_response is not None
+            cached_response = None
+            cache_hit = False
             
             response = cached_func(self, request, *args, **kwargs)
             
@@ -232,9 +235,9 @@ def monitored_cache_view(timeout=None, key_prefix=''):
             
             user_id = request.user.id if request.user and request.user.is_authenticated else None
             
-            if hasattr(response, 'status_code') and response.status_code == 404:
-                cache.delete(cache_key)
-                print(f"Not caching 404 response for {view_name}")
+            # if hasattr(response, 'status_code') and response.status_code == 404:
+            #     cache.delete(cache_key)
+            #     print(f"Not caching 404 response for {view_name}")
             
             log_cache_access(
                 view_name=view_name,
@@ -302,25 +305,28 @@ class MonitoredCacheMixin:
         view_name = f"{prefix}_{self.__class__.__name__}" if prefix else self.__class__.__name__
         cache_key = generate_cache_key(view_name, request, *args, **kwargs)
         
-        cached_response = cache.get(cache_key)
-        cache_hit = cached_response is not None
+        # Caching disabled
+        # cached_response = cache.get(cache_key)
+        # cache_hit = cached_response is not None
+        cached_response = None
+        cache_hit = False
         
-        if cache_hit:
-            response = cached_response
-        else:
-            response = super().dispatch(request, *args, **kwargs)
+        # if cache_hit:
+        #     response = cached_response
+        # else:
+        response = super().dispatch(request, *args, **kwargs)
             
-            if hasattr(response, 'status_code') and response.status_code == 404:
-                cache.delete(cache_key)
-                print(f"Not caching 404 response for {view_name}")
-            else:
-                if hasattr(response, 'data') and response.status_code == 200:
-                    try:
-                        if hasattr(response, 'accepted_renderer') and not getattr(response, '_is_rendered', False):
-                            response.render()
-                        cache.set(cache_key, response, self.cache_timeout)
-                    except Exception as e:
-                        logger.error(f"Error caching response: {str(e)}")
+        # if hasattr(response, 'status_code') and response.status_code == 404:
+        #     cache.delete(cache_key)
+        #     print(f"Not caching 404 response for {view_name}")
+        # else:
+        #     if hasattr(response, 'data') and response.status_code == 200:
+        #         try:
+        #             if hasattr(response, 'accepted_renderer') and not getattr(response, '_is_rendered', False):
+        #                 response.render()
+        #             cache.set(cache_key, response, self.cache_timeout)
+        #         except Exception as e:
+        #             logger.error(f"Error caching response: {str(e)}")
         
         response_time = time.time() - start_time
         

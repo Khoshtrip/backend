@@ -22,18 +22,19 @@ def cache_view(timeout=None, key_prefix=''):
             
             # Generate a cache key
             view_name = f"{key_prefix}_{view_func.__name__}" if key_prefix else view_func.__name__
-            cache_key = generate_cache_key(view_name, request, *args, **kwargs)
+            # cache_key = generate_cache_key(view_name, request, *args, **kwargs)
             
-            cached_response = get_cached_view_result(view_name, request, *args, **kwargs)
-            if cached_response is not None:
-                return cached_response
+            # Caching disabled
+            # cached_response = get_cached_view_result(view_name, request, *args, **kwargs)
+            # if cached_response is not None:
+            #     return cached_response
             
             response = view_func(self, request, *args, **kwargs)
             
-            if hasattr(response, 'status_code') and response.status_code == 404:
-                return response
+            # if hasattr(response, 'status_code') and response.status_code == 404:
+            #     return response
             
-            cache_view_result(view_name, response, request, timeout, *args, **kwargs)
+            # cache_view_result(view_name, response, request, timeout, *args, **kwargs)
             
             return response
         
@@ -70,18 +71,19 @@ class CacheMixin:
             return super().dispatch(request, *args, **kwargs)
         
         view_name = f"{self.cache_key_prefix}_{self.__class__.__name__}" if self.cache_key_prefix else self.__class__.__name__
-        cache_key = generate_cache_key(view_name, request, *args, **kwargs)
+        # cache_key = generate_cache_key(view_name, request, *args, **kwargs)
         
-        cached_response = cache.get(cache_key)
-        if cached_response is not None:
-            return cached_response
+        # Caching disabled
+        # cached_response = cache.get(cache_key)
+        # if cached_response is not None:
+        #     return cached_response
         
         response = super().dispatch(request, *args, **kwargs)
         
-        if hasattr(response, 'status_code') and response.status_code == 404:
-            return response
+        # if hasattr(response, 'status_code') and response.status_code == 404:
+        #     return response
         
-        if hasattr(response, 'data') and response.status_code == 200:
-            cache.set(cache_key, response, self.cache_timeout)
+        # if hasattr(response, 'data') and response.status_code == 200:
+        #     cache.set(cache_key, response, self.cache_timeout)
         
         return response 
