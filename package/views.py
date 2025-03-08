@@ -366,70 +366,86 @@ class PurchasePackageView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, transaction_id):
-        # Find the transaction
-        transaction = get_object_or_404(Transaction, transaction_id=transaction_id, user=request.user)
+        try:
+            # Find the transaction
+            transaction = get_object_or_404(Transaction, transaction_id=transaction_id, user=request.user)
 
-        # Check if the transaction is already completed or cancelled
-        if transaction.status != 'pending':
+            # Check if the transaction is already completed or cancelled
+            if transaction.status != 'pending':
+                return Response(
+                    {
+                        'status': 'error',
+                        'message': 'Transaction is already completed or cancelled'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Print request data for debugging
+            print(f"Purchase request data: {request.data}")
+
+            # Validate request data
+            serializer = PurchasePackageSerializer(data=request.data)
+            if not serializer.is_valid():
+                print(f"Serializer errors: {serializer.errors}")
+                return Response(
+                    {
+                        'status': 'error',
+                        'message': 'Invalid payment details',
+                        'errors': serializer.errors
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            card_number = serializer.validated_data['card_number']
+
+            # Mark the transaction as completed
+            transaction.status = 'completed'
+            transaction.purchase_date = timezone.now()
+            transaction.card_number = card_number[-4:]  # Store only the last 4 digits
+            transaction.save()
+
+            # Update available units
+            package = transaction.package
+            package.available_units -= transaction.quantity
+            package.save()
+
+            # Save purchase history
+            total_price = package.price * transaction.quantity
+            PurchaseHistory.objects.create(
+                user=request.user,
+                package=package,
+                transaction=transaction,
+                purchase_date=transaction.purchase_date,
+                quantity=transaction.quantity,
+                total_price=total_price
+            )
+
+            return Response(
+                {
+                    'status': 'success',
+                    'message': 'Package purchased successfully',
+                    'data': {
+                        'package_id': package.id,
+                        'user_id': request.user.id,
+                        'transaction_id': transaction.transaction_id,
+                        'purchase_date': transaction.purchase_date,
+                        'quantity': transaction.quantity,
+                        'total_price': float(total_price)
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            import traceback
+            print(f"Error purchasing package: {str(e)}")
+            print(traceback.format_exc())
             return Response(
                 {
                     'status': 'error',
-                    'message': 'Transaction is already completed or cancelled'
+                    'message': f'Failed to purchase package: {str(e)}'
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        # Validate request data
-        serializer = PurchasePackageSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {
-                    'status': 'error',
-                    'message': 'Invalid payment details',
-                    'errors': serializer.errors
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        card_number = serializer.validated_data['card_number']
-
-        # Mark the transaction as completed
-        transaction.status = 'completed'
-        transaction.purchase_date = timezone.now()
-        transaction.card_number = card_number[-4:]  # Store only the last 4 digits
-        transaction.save()
-
-        # Update available units
-        package = transaction.package
-        package.available_units -= transaction.quantity
-        package.save()
-
-        # Save purchase history
-        total_price = package.price * transaction.quantity
-        PurchaseHistory.objects.create(
-            user=request.user,
-            package=package,
-            transaction=transaction,
-            purchase_date=transaction.purchase_date,
-            quantity=transaction.quantity,
-            total_price=total_price
-        )
-
-        return Response(
-            {
-                'status': 'success',
-                'message': 'Package purchased successfully',
-                'data': {
-                    'package_id': package.id,
-                    'user_id': request.user.id,
-                    'transaction_id': transaction.transaction_id,
-                    'purchase_date': transaction.purchase_date,
-                    'quantity': transaction.quantity,
-                    'total_price': total_price
-                }
-            },
-            status=status.HTTP_200_OK
-        )
 
 class CancelTransactionView(APIView):
     permission_classes = [IsAuthenticated]
