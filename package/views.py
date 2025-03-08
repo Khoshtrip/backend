@@ -12,7 +12,7 @@ from django.views.decorators.cache import cache_page
 from utils.cache_decorators import cache_view
 from utils.cache_monitoring import monitored_cache_view, MonitoredCacheMixin
 from .models import TripPackage, Transaction, PurchaseHistory, PackageRating
-from .serializers import TripPackageSerializer, TripPackageListSerializer, PurchasePackageSerializer
+from .serializers import TripPackageSerializer, TripPackageListSerializer, PurchasePackageSerializer, TripPackageDetailSerializer
 from authorization.permissions import IsPackageMaker, IsPackageMakerOrCustomer
 from datetime import datetime
 from django.shortcuts import get_object_or_404
@@ -223,7 +223,7 @@ class PackageDetailView(MonitoredCacheMixin, APIView):
     def get(self, request, package_id):
         try:
             package = TripPackage.objects.get(id=package_id)
-            serializer = TripPackageSerializer(package)
+            serializer = TripPackageDetailSerializer(package)
             return Response({
                 'status': 'success',
                 'message': 'Package details retrieved successfully',

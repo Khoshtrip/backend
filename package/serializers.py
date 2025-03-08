@@ -21,10 +21,6 @@ class TripPackageListSerializer(serializers.ModelSerializer):
         ]
 
 class TripPackageSerializer(serializers.ModelSerializer):
-    flight = ProductSerializer(read_only=True)
-    hotel = ProductSerializer(read_only=True)
-    activities = ProductSerializer(many=True, read_only=True)
-
     class Meta:
         model = TripPackage
         fields = [
@@ -64,7 +60,22 @@ class TripPackageSerializer(serializers.ModelSerializer):
                     })
 
         return data
+    
+class TripPackageDetailSerializer(serializers.ModelSerializer):
+    flight = ProductSerializer(read_only=True)
+    hotel = ProductSerializer(read_only=True)
+    activities = ProductSerializer(many=True, read_only=True)
 
+    class Meta:
+        model = TripPackage
+        fields = [
+            'id', 'name', 'photos', 'flight', 'hotel',
+            'activities', 'price', 'start_date', 'end_date',
+            'available_units', 'published', 'description',
+            'created_at', 'updated_at', 'rating', 'ratings_count'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+        
 class PurchasePackageSerializer(serializers.Serializer):
     card_number = serializers.CharField(max_length=16)
     expiration_date = serializers.CharField(max_length=20, required=False)
